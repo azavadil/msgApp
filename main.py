@@ -129,11 +129,7 @@ def make_url_datepath(input_string):
     day_of_year = time.localtime().tm_yday
     return '/' + str(year) + '/' + str(day_of_year) + '/' + input_string
 		
-										
-########## FRONTPAGE WRITERS ##########
-
-## replace these values with actual values 
-frontpage_authors = ['alan','bob','carol']
+			
 					
 ########## DATABASE CLASSES ##########	
 def users_DB_key(group = 'default'):
@@ -164,6 +160,10 @@ class user_DB(db.Model):
 		
     @classmethod
     def register(cls, name, pw, email = None):
+	
+		## replace these values with actual values 
+		frontpage_authors = ['alan','bob','carol']
+
 		frnt_author = False
 		if name in frontpage_authors:
 			frnt_author = True
@@ -178,20 +178,156 @@ class user_DB(db.Model):
 
     @classmethod
     def db_login(cls, name, pw):
-	u = cls.db_by_name(name)
-	if u and valid_pw(name, pw, u.pw_hash):
-		return u, ''
-	elif u:
-		return u, "Username and password don't match"
-	else:
-		return None, "Invalid login"
+		u = cls.db_by_name(name)
+		if u and valid_pw(name, pw, u.pw_hash):
+			return u, ''
+		elif u:
+			return u, "Username and password don't match"
+		else:
+			return None, "Invalid login"
 
-##  insiderHandler is the main webpage handler that
+########## CONTENT DATABASE ##########
+	
+def insider_key(name = 'default'):
+    return db.Key.from_path('insider',name)
+		
+class insiderContent(db.Model):
+    ##required = True, will raise an exception if we try to create 
+    ##content without a title
+	title = db.StringProperty(required = True)
+	insiderPost = db.TextProperty(required = True)
+	author = db.StringProperty(required = True)
+	front_page = db.BooleanProperty(required = True)
+	url_path = db.StringProperty(required = True)
+	##auto_now_add sets created to be the current time
+	created = db.DateTimeProperty(auto_now_add = True)
+	last_modified = db.DateTimeProperty(auto_now = True)	
+	
+	def render(self, b_summarize = None):
+		self._render_text = self.insiderPost.replace('\n','<br>')
+		return render_str("formatted_post.html", page = self, summarize_text = b_summarize)
+    	
+    ##doesn't need an instance of the class
+    ##e.g. can be called on insiderContent 
+	@staticmethod
+	def parent_key(path):
+		return db.Key.from_path(path,'pages')
+		
+    ##doesn't run on an instance of the class
+    ##e.g. can be called on insiderContent
+	
+	@classmethod
+	def by_path(cls,path):
+		q = cls.all()
+		q.ancestor(cls.parent_key(path))
+		q.order("-created")
+		return q
+
+	@classmethod
+	def by_id(cls,page_id,path):
+		return cls.get_by_id(page_id,cls.parent_key(path))
+	
+	@classmethod
+	def by_url_path(cls, url_path):
+		content = insiderContent.all().filter('url_path =', url_path).get()
+		return content
+    		
+########## COMMENT DATABASE ##########
+	
+class postComment(db.Model):
+    ##required = True, will raise an exception if we try to create 
+    ##content without a title
+    cmt_title = db.StringProperty(required = False)
+    cmt_comment = db.TextProperty(required = True)
+    cmt_author = db.StringProperty(required = True)
+    cmt_url_path = db.StringProperty(required = True)  ##NTD:need to check for uniqueness
+    ##auto_now_add sets created to be the current time
+    created = db.DateTimeProperty(auto_now_add = True)
+    last_modified = db.DateTimeProperty(auto_now = True)
+    	
+    def render(self, b_summarize = None):
+    	self._render_text = self.cmt_comment.replace('\n','<br>')
+    	return render_str("formatted_comment.html", page = self)
+	
+    @staticmethod
+    def parent_key(path):
+    	return db.Key.from_path(path,"comments")
+		
+    @classmethod
+    def by_path(cls,path):
+    	q = cls.all()
+    	q.ancestor(cls.parent_key(path))
+    	q.order("-created")
+    	return q
+
+
+########## CACHING FUNCTIONS ##########		
+		
+##  cache_allpost is applied when we cache multiple posts
+##  (e.g. when the front page is generated or we generate
+##   a user page) 
+
+	
+def cache_allpost(front_val = "", update = False):
+	""" (str, bool) -> str 
+		param front_val: string that's used set construct database keys
+        param update: specifies whether the cache should be overwritten
+	"""
+
+	key = 'top'+front_val
+	if front_val == "":
+		db_frnt_property = True
+	else: 
+		db_frnt_property = False
+		##keys have to be strings
+		logging.error("cache allpost %s" %key)
+	frontpage_res = memcache.get(key)
+	if frontpage_res is None or update:
+		logging.error("cache_allpost - DB QUERY")
+		frontpage_res = insiderContent.all().filter("front_page =", db_frnt_property).order("-created").fetch(8)	
+		memcache.set(key, frontpage_res)
+	return frontpage_res
+
+
+##  cache_singlepost is applied to cache a single post
+
+def cache_singlepost(key_val,update = False):
+    """(str) -> str or Nonetype"""
+
+    cache_key = str(key_val)
+    ##keys have to be strings
+    ##the key is a string of the path
+    singlepost_res = memcache.get(cache_key)
+    if singlepost_res is None or update:
+		logging.error("cache_singlePost - DB SINGLEPOST QUERY")
+		singlepost_res = insiderContent.by_path(key_val).get()
+		
+		##return None if db is empty
+		if not singlepost_res:
+			return None
+		memcache.set(cache_key,singlepost_res)
+    return singlepost_res	
+	
+def cache_comments(key_val,update = False):
+    ##key_val is the url_path
+	cache_key = "cmt_" + str(key_val)
+	comment_res = memcache.get(cache_key)
+	if comment_res is None or update: 
+		comment_res = list(postComment.by_path(key_val))
+	if not comment_res:
+		return None
+	memcache.set(cache_key,comment_res)
+	return comment_res
+
+
+########## WEBPAGE HANDLERS ##########
+	
+##  baseHandler is the main webpage handler that
 ##  other handlers inherit from. We most of the convience  
-##  methods that we use in insiderHandler
+##  methods that we use in baseHandler
 		
 ########## GENERAL PURPOSE HANDLER ##########							
-class insiderHandler(webapp2.RequestHandler):
+class BaseHandler(webapp2.RequestHandler):
     def write(self, *a, **kw):
 		self.response.out.write(*a, **kw)
 		
@@ -243,164 +379,57 @@ class insiderHandler(webapp2.RequestHandler):
 		self.user = uid and user_DB.db_by_id(int(uid))
 		
     def get_prior_url(self):
-    	return self.request.headers.get('referer','/insider')
+		"""
+			get_prior_url is used in Signup to redirect the user back to 
+			whatever page they initiated the signup from. 
+			Convience that returns the user to the page they were on when 
+			they initiated the signup process
+			
+			referer: the referer is sent as part of every http request and 
+			is the page that generated the http request (i.e. the page the user
+			is coming from)
+		"""
+		return self.request.headers.get('referer','/')
 	
     def get_prior_url_set_next_url(self):
+		"""
+			get_prior_url is used in SignupPage and LoginPage. We extract the hidden field 
+			prior_url from the form and use the result to redirect the user back to whatever
+			page they were on when they initiated the signup/login process
+		"""
+			
 		next_url = str(self.request.get('prior_url'))
-		logging.error("insiderHandlers - get_prior_url_set_next_url - next_url = %s" %next_url)
+		logging.error("baseHandlers - get_prior_url_set_next_url - next_url = %s" %next_url)
 		
-		if not next_url or next_url.startswith('/insider/login'):
-			next_url = '/insider'
+		## check that we have a url and the url is not the login page (wrt login page, 
+		## if the user came from the login page we don't want to redirect back to the login 
+		## page when we finish the signup/login process
+		if not next_url or next_url.startswith('/login'):
+			next_url = '/'
+		## strip off trailing '/'
 		if len(next_url) > 1 and next_url[-1] == '/':
 			next_url = next_url[:-1]
 		return next_url
 	
     def notfound(self):
 		self.error(404)
-		self.write('<h1>404: Note Found</h1> Sorry, my friend, but that page does not exist. ')
-	
-		
-########## INSIDER DATABASE ##########
-
-##  cache_allpost is applied when we cache multiple posts
-##  (e.g. when the front page is generated or we generate
-##   a user page) 
-
-	
-def cache_allpost(front_val = "", update = False):
-	""" (str, bool) -> str 
-		param front_val: string that's used set construct database keys
-        param update: specifies whether the cache should be overwritten
-	"""
-
-	key = 'top'+front_val
-	if front_val == "":
-		db_frnt_property = True
-	else: 
-		db_frnt_property = False
-		##keys have to be strings
-		logging.error("cache allpost %s" %key)
-	frontpage_res = memcache.get(key)
-	if frontpage_res is None or update:
-		logging.error("cache_allpost - DB QUERY")
-		frontpage_res = insiderContent.all().filter("front_page =", db_frnt_property).order("-created").fetch(8)	
-		memcache.set(key, frontpage_res)
-	return frontpage_res
-
-
-##  cache_singlepost is applied to cache a single post
-##      
-
-
-def cache_singlepost(key_val,update = False):
-    """(str) -> str or Nonetype"""
-
-    cache_key = str(key_val)
-    ##keys have to be strings
-    ##the key is a string of the path
-    singlepost_res = memcache.get(cache_key)
-    if singlepost_res is None or update:
-		logging.error("cache_singlePost - DB SINGLEPOST QUERY")
-		singlepost_res = insiderContent.by_path(key_val).get()
-		
-		##return None if db is empty
-		if not singlepost_res:
-			return None
-		memcache.set(cache_key,singlepost_res)
-    return singlepost_res	
-	
-def cache_comments(key_val,update = False):
-    ##key_val is the url_path
-	cache_key = "cmt_" + str(key_val)
-	comment_res = memcache.get(cache_key)
-	if comment_res is None or update: 
-		comment_res = list(postComment.by_path(key_val))
-	if not comment_res:
-		return None
-	memcache.set(cache_key,comment_res)
-	return comment_res
-	
-def insider_key(name = 'default'):
-    return db.Key.from_path('insider',name)
-		
-class insiderContent(db.Model):
-    ##required = True, will raise an exception if we try to create 
-    ##content without a title
-    title = db.StringProperty(required = True)
-    insiderPost = db.TextProperty(required = True)
-    author = db.StringProperty(required = True)
-    front_page = db.BooleanProperty(required = True)
-    url_path = db.StringProperty(required = True)
-    ##auto_now_add sets created to be the current time
-    created = db.DateTimeProperty(auto_now_add = True)
-    last_modified = db.DateTimeProperty(auto_now = True)
-    	
-    def render(self, b_summarize = None):
-    	self._render_text = self.insiderPost.replace('\n','<br>')
-    	return render_str("formatted_post.html", page = self, summarize_text = b_summarize)
-    	
-    ##doesn't need an instance of the class
-    ##e.g. can be called on insiderContent 
-    @staticmethod
-    def parent_key(path):
-    	return db.Key.from_path(path,'pages')
-		
-    ##doesn't run on an instance of the class
-    ##e.g. can be called on insiderContent
-    @classmethod
-    def by_path(cls,path):
-    	q = cls.all()
-    	q.ancestor(cls.parent_key(path))
-    	q.order("-created")
-    	return q
-	
-    @classmethod
-    def by_id(cls,page_id,path):
-    	return cls.get_by_id(page_id,cls.parent_key(path))
-    		
-########## COMMENT DATABASE ##########
-	
-class postComment(db.Model):
-    ##required = True, will raise an exception if we try to create 
-    ##content without a title
-    cmt_title = db.StringProperty(required = False)
-    cmt_comment = db.TextProperty(required = True)
-    cmt_author = db.StringProperty(required = True)
-    cmt_url_path = db.StringProperty(required = True)  ##NTD:need to check for uniqueness
-    ##auto_now_add sets created to be the current time
-    created = db.DateTimeProperty(auto_now_add = True)
-    last_modified = db.DateTimeProperty(auto_now = True)
-    	
-    def render(self, b_summarize = None):
-    	self._render_text = self.cmt_comment.replace('\n','<br>')
-    	return render_str("formatted_comment.html", page = self)
-	
-    @staticmethod
-    def parent_key(path):
-    	return db.Key.from_path(path,"comments")
-		
-    @classmethod
-    def by_path(cls,path):
-    	q = cls.all()
-    	q.ancestor(cls.parent_key(path))
-    	q.order("-created")
-    	return q
+		self.write('<h1>404: Note Found</h1> Sorry, my friend, but that page does not exist. ')					
 			
 ########## FRONT PAGE ##########	
-class MainPage(insiderHandler):
+class MainPage(BaseHandler):
     def get(self):
     	##[NTD: topUserPosts once voting is implemented]
     	userPosts = cache_allpost(front_val = "readers")   
     	frontPosts = cache_allpost()
 			
-    	self.render("insider_front.html", frontPosts = frontPosts, userPosts = userPosts)
+    	self.render("front.html", frontPosts = frontPosts, userPosts = userPosts)
 
 ######### JSON FRONT PAGE ##########
-class jsonMainPage(insiderHandler): 
+class jsonMainPage(BaseHandler): 
     """ Generates a JSON object of blog posts """
 
     def get(self):
-    	res_db = db.GqlQuery("SELECT * FROM insiderContent ORDER BY created DESC")
+    	res_db = db.GqlQuery("SELECT * FROM baseContent ORDER BY created DESC")
     	content = [{'subject': result.subject,
     				'content': result.insiderPost,
     				'created': str(result.created.strftime('%a %b %d %H:%M:%S %Y')),
@@ -409,21 +438,21 @@ class jsonMainPage(insiderHandler):
     	self.write(json.dumps(content, indent=4))
 
 ########## DISCRETE PAGE ##########					
-class discretePost(insiderHandler):
+class discretePost(BaseHandler):
     def get(self, path):
 		
-    	readerComments = cache_comments(path) 
-    	logging.error('discretePost -get - readerComments = %s'%readerComments)
+		readerComments = cache_comments(path) 
+		logging.error('discretePost -get - readerComments = %s'%readerComments)
 		
-    	##find the content who's url_path is the same as current url path
-    	##singlepost will return None if there's nothing in the DB
-    	logging.error("discretePost - get - path =  %s" %type(path))
-    	singlePost = cache_singlepost(path)
-    	if not singlePost:
-            self.error(404)
-            return
+		##find the content who's url_path is the same as current url path
+		##singlepost will return None if there's nothing in the DB
+		logging.error("discretePost - get - path =  %s" %type(path))
+		singlePost = cache_singlepost(path)
+		if not singlePost:
+			self.error(404)
+			return
 				
-	self.render("insider_discretePost.html", singlePost = singlePost, path = path, readerComments = readerComments)		
+		self.render("discretePost.html", singlePost = singlePost, path = path, readerComments = readerComments)		
 
     def post(self, path):
 		if not self.user:
@@ -444,13 +473,14 @@ class discretePost(insiderHandler):
             				parent = postComment.parent_key(path))
 			cmt_to_store.put()
 			cache_comments(path,True)
-			self.redirect("/insider" + path)
+			self.redirect(path)
 		else:
-			self.redirect("/insider" + path)
+			self.redirect(path)
+			self.redirect(path)
 		
 
 ######### JSON SINGLE PAGE ##########
-class jsonDiscretePage(insiderHandler): 
+class jsonDiscretePage(BaseHandler): 
 	
 	def get(self,post_id):
 		
@@ -467,14 +497,14 @@ class jsonDiscretePage(insiderHandler):
 		self.write(json.dumps(res, indent=4))
 		
 ########## USERPOST TABLE ##########
-class userpostSummary(insiderHandler):
+class UserpostSummary(BaseHandler):
     def get(self):
     	userPosts = insiderContent.all().filter('front_page =', False).order('-created')  ###[NTD: need to filter by front_page = True]
     	logging.error('userpostSummary - userPosts = %s'%userPosts)			
-    	self.render("insider_userposts.html", posts = userPosts)
+    	self.render("userposts.html", posts = userPosts)
 
 ########## YOURPOST TABLE ##########
-class yourpostSummary(insiderHandler):
+class YourpostSummary(BaseHandler):
 	"""() -> Nonetype
         renders a table of the posts by a specified user
     """
@@ -484,16 +514,16 @@ class yourpostSummary(insiderHandler):
 			return 
 		yourPosts = insiderContent.all().filter('author =', self.user.user_name).order('-created')
 		logging.error('yourpostSummary - get - yourPosts = %s'%yourPosts)
-		self.render("insider_yourposts.html", posts = yourPosts)
+		self.render("yourposts.html", posts = yourPosts)
 	
 ########## NEWPOST PAGE ##########				
-class newPost(insiderHandler):
+class NewPost(BaseHandler):
 	def get(self):
 		if not self.user:
 			self.error(400)
 			return
 		logging.error("newPost - get - self.user = %s" %self.user)
-		self.render("insider_newpost.html")
+		self.render("newpost.html")
 		
 	def post(self):
 		if not self.user:
@@ -507,7 +537,9 @@ class newPost(insiderHandler):
 		path_title = make_urlpath(user_title)
 		path_title = make_url_datepath(path_title)
 		
-		if user_title and user_input:
+		valid_title, title_error_msg = self.validateTitle(path_title)
+		
+		if user_title and user_input and valid_title:
 			##create a new insiderContent DB entry
 			author = self.user.user_name
 			front_page = self.user.frnt_author
@@ -519,6 +551,9 @@ class newPost(insiderHandler):
 					url_path = path_title,
 					parent = insiderContent.parent_key(path_title))
 		
+			
+			 
+			
 			##store the new blog object
 			to_store.put()
 		
@@ -532,15 +567,31 @@ class newPost(insiderHandler):
 			##cache the permalink page for the post
 			cache_singlepost(path_title,True)
 			##redirect to a permalink page, pass the id
-			self.redirect("/insider" + path_title)
-		else:
+			self.redirect(path_title)
+			
+		else: 
 			error = "we need both subject and content!"
+			
+			if not valid_title: 
+				error = title_error_msg
 			##pass the error message to the render fuction
 			##the function then passes 'error' to the form
-			self.render("insider_newpost.html",outTitle=user_title, outCon=user_input, error=error)
+			self.render("newpost.html",outTitle=user_title, outCon=user_input, error=error)
 
+	def validateTitle(self, url_path): 
+		""" check that we don't have a url_path conflick 
+		    we could get a conflict if we have 2 posts with 
+			the same title on the same day 
+		"""
+		content = insiderContent.by_url_path(url_path) 
+		if content: 
+			msg = "That title already exists" 
+			return False, msg
+		else: 
+			return True, ""
+			
 ########## EDITPOST PAGE ##########				
-class editPost(insiderHandler):
+class EditPost(BaseHandler):
 	
 	def get(self, path):
 		if not self.user:
@@ -549,7 +600,7 @@ class editPost(insiderHandler):
 		
 		logging.error('editPost - get - path %s' %path)
 		singlePost = insiderContent.by_path(path).get()
-		self.render("insider_editpost.html", singlePost = singlePost)
+		self.render("editpost.html", singlePost = singlePost)
 	
 	def post(self,path):
 		if not self.user:
@@ -590,23 +641,28 @@ class editPost(insiderHandler):
 				##get the unique id for the post
 			cache_singlepost(path_title,True)
 			##redirect to a permalink page, pass the id
-			self.redirect("/insider" + path_title)
+			self.redirect(path_title)
 		else:
 			error = "we need both subject and content!"
 			##pass the error message to the render fuction
 			##the function then passes 'error' to the form
-			self.render("insider_newpost.html",outTitle=user_title, outCon=user_input, error=error)
+			self.render("newpost.html",outTitle=user_title, outCon=user_input, error=error)
 			
 ########## SIGNUP PAGE ##########						
-class signupPage(insiderHandler):
+class SignupPage(BaseHandler):
 	
 	def get(self):
 		if self.user:
 			self.error(400)
 			return
+			
+		## establish prior url so use gets returned to whatever page they were on 
+		## when they complete signup
 		prior_url = self.get_prior_url()
-		logging.error('signupPage - get - prior_url %s'%prior_url)
-		self.render("insider_signup.html", prior_url = prior_url)
+		## we fill in prior_url as a hidden field in the signup for 
+		## when the form is posted we extract prior_url and redirect the user
+		## to the URL they came from
+		self.render("signup.html", prior_url = prior_url)
 	
 	def post(self):
 		##hold what the user entered
@@ -645,7 +701,7 @@ class signupPage(insiderHandler):
 			have_error = True
 	
 		if have_error:
-			self.render('insider_signup.html',**params)	
+			self.render('signup.html',**params)	
 			##set cookie, redirect to welcome page	
 		else:
 			self.done()
@@ -658,7 +714,7 @@ class signupPage(insiderHandler):
 ## of whether a user exists before adding a user to the database. Register is implemented
 ## by inheriting from signupPage and overwriting the done() method. 
 			
-class Register(signupPage):
+class Register(SignupPage):
 
     def done(self):
     ##make sure the user doesn't already exist
@@ -666,7 +722,7 @@ class Register(signupPage):
 		user = user_DB.db_by_name(self.input_username)
 		if user:
 			msg = 'That user already exists.'
-			self.render('insider_signup.html', name_error = msg)
+			self.render('signup.html', name_error = msg)
 		else:
 			user = user_DB.register(self.input_username, self.input_password, self.input_email_address)
 			user.put()
@@ -675,7 +731,7 @@ class Register(signupPage):
 			self.redirect(self.next_url)
 			
 ########## LOGIN PAGE ##########
-class loginPage(insiderHandler):
+class LoginPage(BaseHandler):
 	
     def get(self):
     	if self.user:
@@ -683,7 +739,7 @@ class loginPage(insiderHandler):
             return
 		
         prior_url = self.get_prior_url()
-        self.render("insider_login.html",prior_url = prior_url)
+        self.render("login.html",prior_url = prior_url)
 	
     def post(self):
         if self.user:
@@ -704,23 +760,24 @@ class loginPage(insiderHandler):
         elif user:
 			
             msg = 'Invalid login'
-            self.render('insider_login.html',general_error = msg, password_error = pw_msg)
+            self.render('login.html',general_error = msg, password_error = pw_msg)
 	else:
 		msg = 'Username not found'
-		self.render('insider_login.html',general_error = msg) 
+		self.render('login.html',general_error = msg) 
 		
 ########## LOGOUT PAGE ##########					
-class logoutPage(insiderHandler):
+class LogoutPage(BaseHandler):
 	
     def get(self):
 		next_url = self.get_prior_url()
+		logging.error('logoutPage - get - next_url %s' %next_url)
 		self.handler_logout()
 		##send user to the page they came from
 		self.redirect(next_url)
 
 
 ########## DELETE POST ##########
-class deletePost(insiderHandler): 
+class DeletePost(BaseHandler): 
 	
 	def get(self, path):
 		if not self.user:
@@ -731,23 +788,23 @@ class deletePost(insiderHandler):
 		logging.error('deletePost - get - path %s'%path)
 		markedForDeletion = insiderContent.by_path(path).get()
 		insiderContent.delete(markedForDeletion); 
-		self.redirect("/insider/edit")
+		self.redirect("/edit")
 		
 ##anything that is in paratheses gets passed in to the handler
 ##the regular expression matches ()		
 
 PAGE_RE = r'(/(?:[a-zA-Z0-9_-]+/?)*)'
 
-app = webapp2.WSGIApplication([('/insider', MainPage),
-								('/insider/?(?:.json)?',jsonMainPage),
-								('/insider/newpost', newPost),
-								('/insider/userposts', userpostSummary),
-								('/insider/edit', yourpostSummary),
-								('/insider/signup',Register),
-								('/insider/login',loginPage),
-								('/insider/logout',logoutPage),
-								('/insider/edit' + PAGE_RE, editPost),
-								('/insider/delete' + PAGE_RE, deletePost), 
-								('/insider' + PAGE_RE, discretePost),
-								('/insider/([0-9]+)(?:.json)?', jsonDiscretePage),
+app = webapp2.WSGIApplication([('/', MainPage),
+								('/?(?:.json)?',jsonMainPage),
+								('/newpost', NewPost),
+								('/userposts', UserpostSummary),
+								('/edit', YourpostSummary),
+								('/signup', Register),
+								('/login', LoginPage),
+								('/logout',LogoutPage),
+								('/edit' + PAGE_RE, EditPost),
+								('/delete' + PAGE_RE, DeletePost), 
+								( PAGE_RE, discretePost),
+								('/([0-9]+)(?:.json)?', jsonDiscretePage),	
 								],debug = True)
