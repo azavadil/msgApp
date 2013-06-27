@@ -213,8 +213,9 @@ class insiderContent(db.Model):
 	def parent_key(path):
 		return db.Key.from_path(path,'pages')
 		
-    ##doesn't run on an instance of the class
-    ##e.g. can be called on insiderContent
+    ## doesn't run on an instance of the class
+    ## e.g. can be called on insiderContent
+	## get posts by URL path
 	
 	@classmethod
 	def by_path(cls,path):
@@ -222,15 +223,12 @@ class insiderContent(db.Model):
 		q.ancestor(cls.parent_key(path))
 		q.order("-created")
 		return q
-
+    
+	## get posts by ID 
+	
 	@classmethod
 	def by_id(cls,page_id,path):
 		return cls.get_by_id(page_id,cls.parent_key(path))
-	
-	@classmethod
-	def by_url_path(cls, url_path):
-		content = insiderContent.all().filter('url_path =', url_path).get()
-		return content
     		
 ########## COMMENT DATABASE ##########
 	
@@ -320,11 +318,11 @@ def cache_comments(key_val,update = False):
 	return comment_res
 
 
-########## WEBPAGE HANDLERS ##########
+########## REQUEST HANDLERS ##########
 	
-##  baseHandler is the main webpage handler that
-##  other handlers inherit from. We most of the convience  
-##  methods that we use in baseHandler
+##  baseHandler is the main request handler that
+##  other handlers inherit from. We put the convience  
+##  methods in baseHandler
 		
 ########## GENERAL PURPOSE HANDLER ##########							
 class BaseHandler(webapp2.RequestHandler):
@@ -424,21 +422,8 @@ class MainPage(BaseHandler):
 			
     	self.render("front.html", frontPosts = frontPosts, userPosts = userPosts)
 
-######### JSON FRONT PAGE ##########
-class jsonMainPage(BaseHandler): 
-    """ Generates a JSON object of blog posts """
-
-    def get(self):
-    	res_db = db.GqlQuery("SELECT * FROM baseContent ORDER BY created DESC")
-    	content = [{'subject': result.subject,
-    				'content': result.insiderPost,
-    				'created': str(result.created.strftime('%a %b %d %H:%M:%S %Y')),
-    			   } for result in res_db]
-    	self.response.headers['Content-Type'] = 'application/json'
-    	self.write(json.dumps(content, indent=4))
-
 ########## DISCRETE PAGE ##########					
-class discretePost(BaseHandler):
+class DiscretePost(BaseHandler):
     def get(self, path):
 		
 		readerComments = cache_comments(path) 
@@ -477,24 +462,6 @@ class discretePost(BaseHandler):
 		else:
 			self.redirect(path)
 			self.redirect(path)
-		
-
-######### JSON SINGLE PAGE ##########
-class jsonDiscretePage(BaseHandler): 
-	
-	def get(self,post_id):
-		
-		key = db.Key.from_path('blogContent', int(post_id)) #, parent = blog_key())
-		singlePost = db.get(key)
-		if not singlePost:
-			self.error(404)
-			return
-		
-		res = {'subject':singlePost.title,
-            		'content':singlePost.insiderPost,
-            		'created':str(singlePost.created.strftime('%a %b %d %H:%M:%S %Y'))}
-		self.response.headers['Content-Type'] = 'application/json'
-		self.write(json.dumps(res, indent=4))
 		
 ########## USERPOST TABLE ##########
 class UserpostSummary(BaseHandler):
@@ -578,12 +545,14 @@ class NewPost(BaseHandler):
 			##the function then passes 'error' to the form
 			self.render("newpost.html",outTitle=user_title, outCon=user_input, error=error)
 
-	def validateTitle(self, url_path): 
-		""" check that we don't have a url_path conflick 
+	def validateTitle(self, path): 
+		""" check that we don't have a url path conflict 
 		    we could get a conflict if we have 2 posts with 
 			the same title on the same day 
 		"""
-		content = insiderContent.by_url_path(url_path) 
+		content = insiderContent.by_path(path).get()
+		logging.error('Newpost - post - validateTitle - content = %s'%content)
+		
 		if content: 
 			msg = "That title already exists" 
 			return False, msg
@@ -787,7 +756,7 @@ class DeletePost(BaseHandler):
 			
 		logging.error('deletePost - get - path %s'%path)
 		markedForDeletion = insiderContent.by_path(path).get()
-		insiderContent.delete(markedForDeletion); 
+		insiderContent.delete(markedForDeletion); 		
 		self.redirect("/edit")
 		
 ##anything that is in paratheses gets passed in to the handler
@@ -796,7 +765,6 @@ class DeletePost(BaseHandler):
 PAGE_RE = r'(/(?:[a-zA-Z0-9_-]+/?)*)'
 
 app = webapp2.WSGIApplication([('/', MainPage),
-								('/?(?:.json)?',jsonMainPage),
 								('/newpost', NewPost),
 								('/userposts', UserpostSummary),
 								('/edit', YourpostSummary),
@@ -805,6 +773,5 @@ app = webapp2.WSGIApplication([('/', MainPage),
 								('/logout',LogoutPage),
 								('/edit' + PAGE_RE, EditPost),
 								('/delete' + PAGE_RE, DeletePost), 
-								( PAGE_RE, discretePost),
-								('/([0-9]+)(?:.json)?', jsonDiscretePage),	
+								( PAGE_RE, DiscretePost),
 								],debug = True)
