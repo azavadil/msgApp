@@ -11,6 +11,7 @@ import urllib
 import json
 import logging
 import time
+import hashsecret
 
 from google.appengine.ext import db
 from google.appengine.api import memcache
@@ -29,7 +30,7 @@ def render_str(template, **params):
 ## put the secret into another module and change to a unique 
 ## secret for your app
 
-SECRET = 'defaultsecret1280020469'
+SECRET = hashsecret.getSecret()
 
 def make_salt():
     return ''.join(random.choice(string.letters) for x in xrange(5))
