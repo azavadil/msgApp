@@ -2,62 +2,91 @@
 
 <html>
 <head>
-	<link type="text/css" rel="stylesheet" href="/stylesheets/static.css"/>
-		<title>TechRag</title>
+	<title>TechRag</title>
 		
 	<link rel="stylesheet" href="https://d396qusza40orc.cloudfront.net/startup%2Fcode%2Fbootstrap-combined.no-icons.min.css">
+	<link type="text/css" rel="stylesheet" href="/stylesheets/static.css"/>
+	 <!-- Imports to make the accordian work --> 
+    <script src="https://d396qusza40orc.cloudfront.net/startup%2Fcode%2Fjquery.js"></script>
+    <script src="https://d396qusza40orc.cloudfront.net/startup%2Fcode%2Fbootstrap.js"></script>
+
     
 		
 </head>
 	
 <body>
-	<a href="/" class ="main-title">
-	    TechRag
-	</a>
-    
-	<div class="header">
-		<div class="controls">
-			{% if user %}
-				{{user.user_name}} (<a class="gray-link" href="/logout">logout</a>)
-				|
-				<a class="gray-link" href="/newpost">newpost</a>
-				|
-				<a class="gray-link" href="/edit">edit</a>
-			{% else %}
-				<a class="gray-link" href="/login">login</a>
-				|
-				<a class="gray-link" href="/signup">signup</a>
-			{% endif %}
+	
+	<!-- Mobile-friendly navbar adapted from example -->
+    <!-- http://twitter.github.io/bootstrap/examples/starter-template.html --> 
+    <div class="navbar navbar-inverse navbar-fixed-top"> 
+      <div class="navbar-inner">
+		<div class="container"> 
+		  <button type="button" class="btn btn-navbar">
+			<span class="icon-bar"></span>
+			<span class="icon-bar"></span>
+			<span class="icon-bar"></span>
+		  </button> 
+		  <a class="brand" href="#">TechRag</a> 
+			<ul class="nav">
+			  <li class="active"><a href="/">Home</a></li>
+			</ul>
 		</div>
-
-		<div class="controls">
-			<!-- this is a blank will be overwritten by templates that inherit base --> 
-			{% block controls %}
-			{% endblock %}
+	  </div>
+    </div>
+	
+	<div class="container"> 
+		<div class="row-fluid heading"> 
+			<div class="span12"> 
+				<h1>TechRag</h1>
+			</div> 
 		</div>
 	
-		<div class="clear"></div>
-	</div> <!--this ends the header section --> 
-	
-	<!--this begins the content section --> 
-	<div id="base-container">  
-		<!--<pre> tag is user to preserve whitespace for leftspacer-->
-		<div id="base-leftcol"><pre> </pre></div>
-		<div id="base-content">
-		{% block content %}
-		{% endblock %}
+		<div class="row-fluid header">		
+			<div class="controls">
+				{% if user %}
+					{{user.user_name}} (<a class="gray-link" href="/logout">logout</a>)
+					|
+					<a class="gray-link" href="/newpost">newpost</a>
+					|
+					<a class="gray-link" href="/edit">edit</a>
+				{% else %}
+					<a class="gray-link" href="/login">login</a>
+					|
+					<a class="gray-link" href="/signup">signup</a>
+				{% endif %}
+			</div>
+		
+			<div class="controls">
+				<!-- this is a blank will be overwritten by templates that inherit base --> 
+				{% block controls %}
+				{% endblock %}
+			</div>
 		</div>
-	
-		<div id="base-rightcol">
-		{% block sidebar %}
-		{% endblock %}
-		</div>
+		
+		
+		<!--this begins the content section --> 
+		<div class="row-fluid base-container"> 
 			
-	</div> 
-	 
-	{% block editblock %}
-	{% endblock %}
-	 
+			<!-- <div id="base-container"> --> 
+				<!--<pre> tag is user to preserve whitespace for leftspacer-->
+				<!-- <div id="base-leftcol"><pre> </pre></div> --> 
+				<div class="span6 offset3 base-content"> 
+				
+					<!-- <div id="base-content"> -->   
+					{% block content %}
+					{% endblock %}
+				</div>
+			
+				<div class="span3 base-rightcol"> 
+					{% block sidebar %}
+					{% endblock %}
+				</div> 
+			</div> 
+		 
+			{% block editblock %}
+			{% endblock %}
+		</div> 
+	</div>
 </body>
 
 </html>
