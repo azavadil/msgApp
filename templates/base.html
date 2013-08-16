@@ -2,7 +2,7 @@
 
 <html>
 <head>
-	<title>TechRag</title>
+	<title>uMail: Udacity email</title>
 		
 	<link rel="stylesheet" href="https://d396qusza40orc.cloudfront.net/startup%2Fcode%2Fbootstrap-combined.no-icons.min.css">
 	<link type="text/css" rel="stylesheet" href="/stylesheets/static.css"/>
@@ -16,77 +16,109 @@
 	
 <body>
 	
-	<!-- Mobile-friendly navbar adapted from example -->
-    <!-- http://twitter.github.io/bootstrap/examples/starter-template.html --> 
+	<!-- http://twitter.github.io/bootstrap/examples/starter-template.html --> 
     <div class="navbar navbar-inverse navbar-fixed-top"> 
       <div class="navbar-inner">
 		<div class="container"> 
-		  <button type="button" class="btn btn-navbar">
-			<span class="icon-bar"></span>
-			<span class="icon-bar"></span>
-			<span class="icon-bar"></span>
-		  </button> 
-		  <a class="brand" href="#">TechRag</a> 
-			<ul class="nav">
-			  <li class="active"><a href="/">Home</a></li>
-			</ul>
+		  	<a class="brand" href="/">uMail</a> 
+			{% if not user and not isSignupPage %}
+				
+				<a class="btn btn-danger pull-right" href="/signup">Create account</a>
+				
+			{% endif%}
+				
 		</div>
 	  </div>
     </div>
 	
-	<div class="container"> 
-		<div class="row-fluid heading"> 
-			<div class="span12"> 
-				<h1>TechRag</h1>
-			</div> 
-		</div>
+	<div class="container-fluid"> 
 	
 		<div class="row-fluid header">		
 			<div class="controls">
 				{% if user %}
 					{{user.user_name}} (<a class="gray-link" href="/logout">logout</a>)
-					|
-					<a class="gray-link" href="/newpost">newpost</a>
-					|
-					<a class="gray-link" href="/edit">edit</a>
-				{% else %}
-					<a class="gray-link" href="/login">login</a>
-					|
-					<a class="gray-link" href="/signup">signup</a>
+				
+				<!-- if the user isn't logged in then we show the login form --> 				
+				<!-- we need to check if we're on the signup page --> 
+				{% elif not isSignupPage %}
+					
+					 
+					
+					<form method="post">
+						<table>
+							<tr>&nbsp</tr> 
+						
+							<tr> 
+								<td class ="label">
+									Username
+								</td>
+								<td>
+									<input required type = "text" pattern = "^\w{3,20}$" name = "username" value= "{{name_provided}}" >
+								</td>
+							</tr>
+						
+							<tr>
+								<td class ="label">
+									Password
+								</td>
+							
+								<td>
+									<input type = "password" required pattern="(?=.*\d)(?=.*[a-z])(?=.*[A-Z])\w{6,20}" onchange="this.setCustomValidity(this.validity.patternMismatch ? 'Password must contain at least 6 characters, including UPPER/lowercase and numbers' : '')" name = "password" value="">
+								</td>
+							</tr>
+							
+							<tr> 
+								<!-- we need to check if we're working with an HTML5 browser --> 
+								<td class = "loginLabel">&nbsp</td>
+								<td class = "loginError"> 
+									{{password_error}}
+								</td> 
+							</tr> 
+						</table>
+					
+						<input id = "mainPageSignInBtn" class="btn btn-primary" type = "submit" value = "Sign in">
+						<input type="hidden" id="password_error_dropbox" name="password_error_dropbox" value={{password_error}} />
+					</form>
 				{% endif %}
-			</div>
-		
-			<div class="controls">
-				<!-- this is a blank will be overwritten by templates that inherit base --> 
-				{% block controls %}
-				{% endblock %}
+			
 			</div>
 		</div>
 		
-		
-		<!--this begins the content section --> 
-		<div class="row-fluid base-container"> 
-			
-			<!-- <div id="base-container"> --> 
-				<!--<pre> tag is user to preserve whitespace for leftspacer-->
-				<!-- <div id="base-leftcol"><pre> </pre></div> --> 
-				<div class="span6 offset3 base-content"> 
-				
-					<!-- <div id="base-content"> -->   
+		{% if user %} 
+			<!-- this begins the content section --> 
+			<div class="row-fluid"> 
+				<div class="span2 offset1"> 
+					{% block sidebar %}
+					{% endblock %}
+				</div>
+					
+				<div class="span9"> 
 					{% block content %}
 					{% endblock %}
 				</div>
-			
-				<div class="span3 base-rightcol"> 
-					{% block sidebar %}
-					{% endblock %}
-				</div> 
+				
 			</div> 
-		 
-			{% block editblock %}
+		{% endif %}
+		<!-- this block is only filled in if we go to the signup page --> 
+		
+		
+		<div class="signupPage">
+			<!-- this is a blank will be overwritten by templates that inherit base --> 
+			{% block signupPage %}
 			{% endblock %}
+		</div>		
+			
+		<!-- this begins the section where we compose messages. When we compose a message 
+		     we leave the content blank allowing the content area to collapse --> 
+		<div class="row-fluid"> 
+			<div class="span12"> 
+				{% block editblock %}
+				{% endblock %}
+			</div>
 		</div> 
 	</div>
+
+	
 </body>
 
 </html>

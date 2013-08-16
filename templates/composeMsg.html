@@ -1,0 +1,56 @@
+{% extends "base.html" %}
+
+
+{% block sidebar %}
+	<!-- onClick we want to navigate to a blank message --> 
+	<div class = "sidebar"> 
+	
+		<!-- insert numMsgs --> 
+		<a class="gray-link" href="#">Inbox({{numMsgs}})</a> 
+	</div>
+	
+	<div class = "sidebar"> 
+		<a class="gray-link" href="#">Sent</a>
+	</div>
+
+{% endblock %}
+
+
+
+{% block content %}
+  <div class = "compose-container"> 
+	<div class="navbar">
+		<div class="navbar-inner">
+			<ul class="nav">
+				<li>New uMail</li>
+			</ul>
+		</div>
+	</div>
+		
+		<form class = "msg-form" method="post">
+			  <label>
+				<div>To</div>
+				<input class="span12" type="text" required name="recipient" value="{{recipient}}">
+			  </label>
+			  
+			  <label>
+				<div>Subject</div>
+				<input class="span12" type="text" name="subject" value="{{subject}}">
+			  </label>
+
+			  <label>
+				<div>Message</div>
+				<textarea class="span12" rows="16" name="body">{{body}}</textarea>
+			  </label>
+
+			  <div class="error">
+			    {{error}}
+			  </div>
+			
+			  <div> 
+				<button class = "btn btn-danger btn-small" type = "submit">Send</button>
+			  </div>
+
+		  </form>
+	</div> 
+{% endblock %}

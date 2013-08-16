@@ -1,0 +1,55 @@
+{% extends "base.html" %}
+
+
+{% block content %}
+{% endblock %}
+
+{% block signupPage %}
+	<h2>Signup</h2>
+		<form method="post">
+			<table>
+				<tr>
+					<td class="label">
+						Username
+					</td>
+					<td>
+						<input type = "text" pattern="^\w{3,20}$" name = "username" value= "{{name_provided}}">
+					</td>
+				</tr>
+				
+				<tr>
+					<td class="label">
+						Password
+					</td>
+					<td>
+						<input type = "password" required pattern="(?=.*\d)(?=.*[a-z])(?=.*[A-Z])\w{6,20}" name="pwd1" onchange="
+							this.setCustomValidity(this.validity.patternMismatch ? 'Password must contain at least 6 characters, including UPPER/lowercase and numbers' : ''); if(this.checkValidity()) form.pwd2.pattern = this.value">
+					</td>
+				</tr>
+				
+				<tr>
+					<td class="label">
+						Verify Password
+					</td>
+					<td>
+						<input type="password" required pattern="(?=.*\d)(?=.*[a-z])(?=.*[A-Z])\w{6,}" name="pwd2" onchange="
+							this.his.validity.patternMismatch ? 'Please enter the same Password as above' : '');">
+					</td>
+				</tr>
+					
+				<tr>
+					<td>&nbsp</td>
+					<td class="fallbackBrowserError">
+						{{fallback_error}}
+					</td>
+				</tr>
+			</table>
+		<input class ="btn btn-primary" 	type = "submit">
+	<input type="hidden" name="prior_url" value={{prior_url}}/>
+</form>
+
+{% endblock %}
+
+
+{% block editblock %}
+{% endblock %}

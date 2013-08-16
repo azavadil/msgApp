@@ -19,7 +19,6 @@ from google.appengine.api import memcache
 template_dir = os.path.join(os.path.dirname(__file__), 'templates')
 jinja_env = jinja2.Environment(loader = jinja2.FileSystemLoader(template_dir),\
 								autoescape = True)
-
 def render_str(template, **params):
 	t = jinja_env.get_template(template)
 	return t.render(params)
@@ -66,12 +65,6 @@ def check_secure_val(h):
     if h == make_secure_val(val):
         return val
 		
-def gray_style(lst):
-    for n, x in enumerate(lst):
-	if n % 2 == 0:
-		yield x, ''
-	else:
-		yield x, 'gray'
 		
 ########## PASSWORD VERIFICATION ##########		
 
@@ -85,17 +78,22 @@ def valid_username(username):
     return False
 
 def valid_password(user_password):
-    PASSWORD_RE = re.compile(r"^.{3,20}$")
-    if PASSWORD_RE.match(user_password):
-    	return True 
-    return False
-	
-def valid_email_address(email_address):
-    EMAIL_RE = re.compile(r"^[\S]+@[\S]+\.[\S]+$")
-    if EMAIL_RE.match(email_address):
+	""" 
+		require 1 uppercase, 1 lowercase, 1 digit, length of at least 6
+		
+		^                  		the start of the string
+		(?=.*[a-z])        		use positive look ahead to see if at least one lower case letter exists
+		(?=.*[A-Z])        		use positive look ahead to see if at least one upper case letter exists
+		(?=.*\d)           		use positive look ahead to see if at least one digit exists
+		.+                 		gobble up the entire string
+		$                  		the end of the string
+	"""
+	PASSWORD_RE = re.compile(r"^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)\w{6,20}$")
+	if PASSWORD_RE.match(user_password):
 		return True 
-    return False
+	return False
 	
+
 ########## PERMALINK FUNCTION ##########
 
 ##  the URLs are organized by date and title  
@@ -144,7 +142,6 @@ class user_DB(db.Model):
     user_name = db.StringProperty(required = True)
     pw_hash = db.StringProperty(required = True)
     user_email = db.StringProperty(required = False)
-    frnt_author = db.BooleanProperty(required = False)
     ##auto_now_add sets created to be the current time
     created = db.DateTimeProperty(auto_now_add = True)
     last_modified = db.DateTimeProperty(auto_now = True)
@@ -187,26 +184,25 @@ class user_DB(db.Model):
 		else:
 			return None, "Invalid login"
 
-########## CONTENT DATABASE ##########
+########## MESSAGE DATABASE ##########
 	
-def insider_key(name = 'default'):
+def message_key(name = 'default'):
     return db.Key.from_path('insider',name)
 		
-class insiderContent(db.Model):
+class Message(db.Model):
     ##required = True, will raise an exception if we try to create 
     ##content without a title
-	title = db.StringProperty(required = True)
-	insiderPost = db.TextProperty(required = True)
 	author = db.StringProperty(required = True)
-	front_page = db.BooleanProperty(required = True)
-	url_path = db.StringProperty(required = True)
+	authorID = db.IntegerProperty(required = True)
+	recipientID = db.IntegerProperty(required = True)
+	subject = db.StringProperty(required = False)
+	body = db.StringProperty(required = False)
 	##auto_now_add sets created to be the current time
 	created = db.DateTimeProperty(auto_now_add = True)
-	last_modified = db.DateTimeProperty(auto_now = True)	
 	
 	def render(self, b_summarize = None):
-		self._render_text = self.insiderPost.replace('\n','<br>')
-		return render_str("formatted_post.html", page = self, summarize_text = b_summarize)
+		self._render_text = self.body.replace('\n','<br>')
+		return render_str("formattedMsg.html", page = self, summarize_text = b_summarize)
     	
     ##doesn't need an instance of the class
     ##e.g. can be called on insiderContent 
@@ -267,56 +263,56 @@ class postComment(db.Model):
 ##   a user page) 
 
 	
-def cache_allpost(front_val = "", update = False):
-	""" (str, bool) -> str 
-		param front_val: string that's used set construct database keys
-        param update: specifies whether the cache should be overwritten
-	"""
+# def cache_allpost(front_val = "", update = False):
+	# """ (str, bool) -> str 
+		# param front_val: string that's used set construct database keys
+        # param update: specifies whether the cache should be overwritten
+	# """
 
-	key = 'top'+front_val
-	if front_val == "":
-		db_frnt_property = True
-	else: 
-		db_frnt_property = False
-		##keys have to be strings
-		logging.error("cache allpost %s" %key)
-	frontpage_res = memcache.get(key)
-	if frontpage_res is None or update:
-		logging.error("cache_allpost - DB QUERY")
-		frontpage_res = insiderContent.all().filter("front_page =", db_frnt_property).order("-created").fetch(8)	
-		memcache.set(key, frontpage_res)
-	return frontpage_res
+	# key = 'top'+front_val
+	# if front_val == "":
+		# db_frnt_property = True
+	# else: 
+		# db_frnt_property = False
+		# ##keys have to be strings
+		# logging.error("cache allpost %s" %key)
+	# frontpage_res = memcache.get(key)
+	# if frontpage_res is None or update:
+		# logging.error("cache_allpost - DB QUERY")
+		# frontpage_res = insiderContent.all().filter("front_page =", db_frnt_property).order("-created").fetch(8)	
+		# memcache.set(key, frontpage_res)
+	# return frontpage_res
 
 
 ##  cache_singlepost is applied to cache a single post
 
-def cache_singlepost(key_val,update = False):
-    """(str) -> str or Nonetype"""
+# def cache_singlepost(key_val,update = False):
+    # """(str) -> str or Nonetype"""
 
-    cache_key = str(key_val)
-    ##keys have to be strings
-    ##the key is a string of the path
-    singlepost_res = memcache.get(cache_key)
-    if singlepost_res is None or update:
-		logging.error("cache_singlePost - DB SINGLEPOST QUERY")
-		singlepost_res = insiderContent.by_path(key_val).get()
+    # cache_key = str(key_val)
+    # ##keys have to be strings
+    # ##the key is a string of the path
+    # singlepost_res = memcache.get(cache_key)
+    # if singlepost_res is None or update:
+		# logging.error("cache_singlePost - DB SINGLEPOST QUERY")
+		# singlepost_res = insiderContent.by_path(key_val).get()
 		
-		##return None if db is empty
-		if not singlepost_res:
-			return None
-		memcache.set(cache_key,singlepost_res)
-    return singlepost_res	
+		# ##return None if db is empty
+		# if not singlepost_res:
+			# return None
+		# memcache.set(cache_key,singlepost_res)
+    # return singlepost_res	
 	
-def cache_comments(key_val,update = False):
-    ##key_val is the url_path
-	cache_key = "cmt_" + str(key_val)
-	comment_res = memcache.get(cache_key)
-	if comment_res is None or update: 
-		comment_res = list(postComment.by_path(key_val))
-	if not comment_res:
-		return None
-	memcache.set(cache_key,comment_res)
-	return comment_res
+# def cache_comments(key_val,update = False):
+    # ##key_val is the url_path
+	# cache_key = "cmt_" + str(key_val)
+	# comment_res = memcache.get(cache_key)
+	# if comment_res is None or update: 
+		# comment_res = list(postComment.by_path(key_val))
+	# if not comment_res:
+		# return None
+	# memcache.set(cache_key,comment_res)
+	# return comment_res
 
 
 ########## REQUEST HANDLERS ##########
@@ -332,7 +328,6 @@ class BaseHandler(webapp2.RequestHandler):
 		
     def render_str(self, template, **params):
 		params['user'] = self.user
-		params['gray_style'] = gray_style
 		return render_str(template, **params)
 	
     def render(self, template, **kw):
@@ -416,111 +411,90 @@ class BaseHandler(webapp2.RequestHandler):
 			
 ########## FRONT PAGE ##########	
 class MainPage(BaseHandler):
-    def get(self):
-    	##[NTD: topUserPosts once voting is implemented]
-    	userPosts = cache_allpost(front_val = "readers")   
-    	frontPosts = cache_allpost()
+	def get(self):
+		##query the database for all msgs in the users inbox 
+		## userInbox = cache_inbox(self.user)   
+		
+		## pass the inbox as a parameter to render 
+		if not self.user: 
+			self.render("summaryPanel.html")
+		else:
+			qry = Message.all().filter("recipientID =", self.user.key().id())
+			self.render("summaryPanel.html", numMsgs = qry.count(), msgs = qry)
 			
-    	self.render("front.html", frontPosts = frontPosts, userPosts = userPosts)
+		
+			
+		
+		
+	
+	def post(self):
+	
+      	
+		##hold what the user entered
+		input_username = self.request.get('username')
+		input_password = self.request.get('password')
+	
+		logging.error("mainpage = %s, %s" %(input_username, input_password))	
+	
+		##check the password
+		user, pw_msg = user_DB.db_login(input_username,input_password)
+		## db_login returns the user id and the empty string if the password validates, 
+		## the user and the msg "Username and password don't match" if the user was found 
+		## but the password doesn't validate, and "Invalid login" otherwise
+		
+		if user and pw_msg == '': 
+			self.handler_login(user)
+			self.redirect("/")
+		else:
+			self.render('base.html', name_provided = input_username, password_error = pw_msg) 
 
 ########## DISCRETE PAGE ##########					
-class DiscretePost(BaseHandler):
+class ViewMsg(BaseHandler):
     def get(self, path):
 		
-		readerComments = cache_comments(path) 
-		logging.error('discretePost -get - readerComments = %s'%readerComments)
 		
-		##find the content who's url_path is the same as current url path
-		##singlepost will return None if there's nothing in the DB
-		logging.error("discretePost - get - path =  %s" %type(path))
-		singlePost = cache_singlepost(path)
-		if not singlePost:
+		if not self.user:
 			self.error(404)
 			return
 				
 		self.render("discretePost.html", singlePost = singlePost, path = path, readerComments = readerComments)		
 
-    def post(self, path):
-		if not self.user:
-			self.error(400)
-			return
-			
-		input_title = self.request.get("title")
-		input_comment = self.request.get("comment")
-		author = self.user.user_name
-		
-		logging.error('discretePost - post - input comment = %s' %input_comment)
-		if input_comment and self.user:
-			logging.error('discretePost - post')
-			cmt_to_store = postComment(cmt_title = input_title, 
-            				cmt_comment = input_comment, 
-            				cmt_author = author, 
-            				cmt_url_path = path, 
-            				parent = postComment.parent_key(path))
-			cmt_to_store.put()
-			cache_comments(path,True)
-			self.redirect(path)
-		else:
-			self.redirect(path)
-			self.redirect(path)
-		
-########## USERPOST TABLE ##########
-class UserpostSummary(BaseHandler):
-    def get(self):
-    	userPosts = insiderContent.all().filter('front_page =', False).order('-created')  ###[NTD: need to filter by front_page = True]
-    	logging.error('userpostSummary - userPosts = %s'%userPosts)			
-    	self.render("userposts.html", posts = userPosts)
 
-########## YOURPOST TABLE ##########
-class YourpostSummary(BaseHandler):
-	"""() -> Nonetype
-        renders a table of the posts by a specified user
-    """
-	def get(self):
-		if not self.user:
-			self.error(400)
-			return 
-		yourPosts = insiderContent.all().filter('author =', self.user.user_name).order('-created')
-		logging.error('yourpostSummary - get - yourPosts = %s'%yourPosts)
-		self.render("yourposts.html", posts = yourPosts)
 	
-########## NEWPOST PAGE ##########				
-class NewPost(BaseHandler):
+########## COMPOSE MESSAGE ##########				
+class ComposeMessage(BaseHandler):
 	def get(self):
 		if not self.user:
 			self.error(400)
 			return
-		logging.error("newPost - get - self.user = %s" %self.user)
-		self.render("newpost.html")
+		self.render("composeMsg.html")
 		
 	def post(self):
 		if not self.user:
 			self.error(400)
 			return
 		
-		##retreive the field named "title" and the field named "content"
+		##retreive the field named "subject" and the field named "content"
 		##from the form submission
-		user_title = self.request.get("title")
-		user_input = self.request.get("content")
-		path_title = make_urlpath(user_title)
-		path_title = make_url_datepath(path_title)
+		recipient = self.request.get("recipient")
+		msg_subject = self.request.get("subject")
+		msg_body = self.request.get("body")
 		
-		valid_title, title_error_msg = self.validateTitle(path_title)
 		
-		if user_title and user_input and valid_title:
-			##create a new insiderContent DB entry
-			author = self.user.user_name
-			front_page = self.user.frnt_author
-			logging.error('newPost - get - front_page = %s'%front_page)
-			to_store = insiderContent(title = user_title,
-					insiderPost = user_input,
-					author = author,
-					front_page = front_page,
-					url_path = path_title,
-					parent = insiderContent.parent_key(path_title))
+		##we have to query the database for the recipient
+		recipientEntity = user_DB.db_by_name(recipient) 
 		
-			
-			 
+		
+		
+		if recipientEntity:
+			##create a new Message entity
+	
+			to_store = Message(author = self.user.user_name,\
+							authorID = self.user.key().id(),\
+							recipientID = recipientEntity.key().id(),\
+							subject = msg_subject,\
+							body = msg_body)
+		
 			
 			##store the new blog object
 			to_store.put()
@@ -528,95 +502,22 @@ class NewPost(BaseHandler):
 			##only cache the relevant section. If it's a
 			##frontpage writer, we need to cache the frontpage
 			##if it's a reader, we need to cache the reader
-			if front_page:
-				cache_allpost(update = True)
-			else:
-				cache_allpost("readers",True)
+			
+			##  cache_allpost("readers",True)
 			##cache the permalink page for the post
-			cache_singlepost(path_title,True)
+			##  cache_singlepost(path_title,True)
 			##redirect to a permalink page, pass the id
-			self.redirect(path_title)
+			self.redirect("/")
 			
 		else: 
-			error = "we need both subject and content!"
+			error = "That recipient doesn't exist"
 			
-			if not valid_title: 
-				error = title_error_msg
 			##pass the error message to the render fuction
 			##the function then passes 'error' to the form
-			self.render("newpost.html",outTitle=user_title, outCon=user_input, error=error)
+			self.render("composeMsg.html",recipient = recipient, subject = msg_subject, body = msg_body, error=error)
 
-	def validateTitle(self, path): 
-		""" check that we don't have a url path conflict 
-		    we could get a conflict if we have 2 posts with 
-			the same title on the same day 
-		"""
-		content = insiderContent.by_path(path).get()
-		logging.error('Newpost - post - validateTitle - content = %s'%content)
-		
-		if content: 
-			msg = "That title already exists" 
-			return False, msg
-		else: 
-			return True, ""
+
 			
-########## EDITPOST PAGE ##########				
-class EditPost(BaseHandler):
-	
-	def get(self, path):
-		if not self.user:
-			self.error(400)
-			return
-		
-		logging.error('editPost - get - path %s' %path)
-		singlePost = insiderContent.by_path(path).get()
-		self.render("editpost.html", singlePost = singlePost)
-	
-	def post(self,path):
-		if not self.user:
-			self.error(400)
-			return
-		
-		logging.error('editPost - post - path = %s' %path)
-		##retreive the field named "title" and the field named "content"
-		##from the form submission
-		user_title = self.request.get("title")
-		user_input = self.request.get("content")
-		db_key = self.request.get("db_id")
-		path_title = path
-				
-		if user_title and user_input:
-		##create a new insiderContent DB entry
-			
-			##db_by_name() returns a .get() instance
-			author = self.user.user_name
-			front_page = self.user.frnt_author
-			logging.error('editPost - post - front_page = %s'%front_page)
-			to_store = insiderContent(key = db_key,
-                        	   title = user_title,
-                            	   insiderPost = user_input,
-                            	   author = author,
-                            	   front_page = front_page,
-                            	   url_path = path_title, 
-                            	   parent = insiderContent.parent_key(path_title))
-		
-			##store the new blog object
-			to_store.put()
-	
-			##see newpost comment
-			if front_page:
-				cache_allpost(update = True)
-			else:
-				cache_allpost("readers",True)
-				##get the unique id for the post
-			cache_singlepost(path_title,True)
-			##redirect to a permalink page, pass the id
-			self.redirect(path_title)
-		else:
-			error = "we need both subject and content!"
-			##pass the error message to the render fuction
-			##the function then passes 'error' to the form
-			self.render("newpost.html",outTitle=user_title, outCon=user_input, error=error)
 			
 ########## SIGNUP PAGE ##########						
 class SignupPage(BaseHandler):
@@ -632,48 +533,46 @@ class SignupPage(BaseHandler):
 		## we fill in prior_url as a hidden field in the signup for 
 		## when the form is posted we extract prior_url and redirect the user
 		## to the URL they came from
-		self.render("signup.html", prior_url = prior_url)
+		self.render("signupPage.html", isSignupPage = True)
 	
 	def post(self):
-		##hold what the user entered
+		
+		## check if the user is logged in. If the user is logged in then we 
+		## shouldn't be on this page 
 		if self.user:
 			self.error(400)
 			return
-
-		have_error = False
-		
-		##extract prior_url. Used to send user back to page they were on
-		self.next_url = self.get_prior_url_set_next_url()
-		logging.error('signupPage - get - self.next_url = %s'%self.next_url)
 	
+		##store what the user entered
 		self.input_username = self.request.get('username')
-		self.input_password = self.request.get('password')
-		self.password_verify = self.request.get('verify')
-		self.input_email_address = self.request.get('email')    
-	
-		params = dict(name_provided = self.input_username, \
-			email_provided = self.input_email_address)
+		self.input_password = self.request.get('pwd1')
+		self.password_verify = self.request.get('pwd2')
+		
+		params = dict(name_provided = self.input_username)
+
+		error_msg = "" 
+		have_error = False
 		
 		##test for validity
 		##test for valid user_name
 		if not valid_username(self.input_username):
-			params['name_error'] = "That's not a valid username"
+			error_msg += "That's not a valid username"
 			have_error = True
-		
+
 		if not valid_password(self.input_password):
-			params['password_error'] = "That wasn't a valid password"
+			error_msg += "That wasn't a valid password" if error_msg == "" else ", that isn't a valid password" 
 			have_error = True
-		elif self.input_password != self.password_verify:
-			params['password_error'] = "Passwords don't match"
 		
-		if not (valid_email_address(self.input_email_address) or self.input_email_address == ''):
-			params['email_error'] = "That's not a valid email"
+		if self.input_password != self.password_verify:
+			error_msg += "Passwords don't match" if error_msg == "" else ", passwords don't match" 
 			have_error = True
 	
 		if have_error:
-			self.render('signup.html',**params)	
+			params["fallback_error"] = error_msg
+			self.render('signupPage.html',**params)	
 			##set cookie, redirect to welcome page	
-		else:
+		else: 
+			##set cookie, redirect to welcome page	
 			self.done()
 		
 	def done(self,*a,**kw):
@@ -692,58 +591,23 @@ class Register(SignupPage):
 		user = user_DB.db_by_name(self.input_username)
 		if user:
 			msg = 'That user already exists.'
-			self.render('signup.html', name_error = msg)
+			self.render('signupPage.html', fallback_error = msg, isSignupPage = True)
 		else:
-			user = user_DB.register(self.input_username, self.input_password, self.input_email_address)
+			email_addr = self.input_username + "@umail.com"
+			user = user_DB.register(self.input_username, self.input_password, email_addr)
 			user.put()
 			
 			self.handler_login(user)
-			self.redirect(self.next_url)
+			self.redirect("/")
 			
-########## LOGIN PAGE ##########
-class LoginPage(BaseHandler):
-	
-    def get(self):
-    	if self.user:
-            self.error(400)
-            return
-		
-        prior_url = self.get_prior_url()
-        self.render("login.html",prior_url = prior_url)
-	
-    def post(self):
-        if self.user:
-            self.error(400)
-            return
-		
-	next_url = self.get_prior_url_set_next_url()
-		
-	##hold what the user entered
-	input_username = self.request.get('username')
-	input_password = self.request.get('password')
-				
-	##check the password
-	user, pw_msg = user_DB.db_login(input_username,input_password)
-	if user and pw_msg == '': 
-            self.handler_login(user)
-            self.redirect(next_url)
-        elif user:
-			
-            msg = 'Invalid login'
-            self.render('login.html',general_error = msg, password_error = pw_msg)
-	else:
-		msg = 'Username not found'
-		self.render('login.html',general_error = msg) 
 		
 ########## LOGOUT PAGE ##########					
 class LogoutPage(BaseHandler):
 	
     def get(self):
-		next_url = self.get_prior_url()
-		logging.error('logoutPage - get - next_url %s' %next_url)
 		self.handler_logout()
 		##send user to the page they came from
-		self.redirect(next_url)
+		self.redirect("/")
 
 
 ########## DELETE POST ##########
@@ -766,13 +630,9 @@ class DeletePost(BaseHandler):
 PAGE_RE = r'(/(?:[a-zA-Z0-9_-]+/?)*)'
 
 app = webapp2.WSGIApplication([('/', MainPage),
-								('/newpost', NewPost),
-								('/userposts', UserpostSummary),
-								('/edit', YourpostSummary),
+								('/newMsg', ComposeMessage),
 								('/signup', Register),
-								('/login', LoginPage),
 								('/logout',LogoutPage),
-								('/edit' + PAGE_RE, EditPost),
 								('/delete' + PAGE_RE, DeletePost), 
-								( PAGE_RE, DiscretePost),
+								( PAGE_RE, ViewMsg),
 								],debug = True)
