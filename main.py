@@ -131,8 +131,8 @@ def make_url_datepath(input_string):
 			
 					
 ########## DATABASE CLASSES ##########	
-def users_DB_key(group = 'default'):
-    return db.Key.from_path('users', group)	
+def users_DB_rootkey(group = 'default'):
+    return db.Key.from_path('user_DB', key_name = group)	
     ##the users_DB_key fuction returns an empty object
     ##that we can use for organization
 
@@ -148,7 +148,7 @@ class user_DB(db.Model):
 	
     @classmethod
     def db_by_id(cls, uid):
-    	return user_DB.get_by_id(uid,users_DB_key())
+    	return user_DB.get_by_id(uid,users_DB_rootkey())
 
     @classmethod
     def db_by_name(cls, name):
@@ -168,7 +168,7 @@ class user_DB(db.Model):
 		
 		current_pw_hash = make_pw_hash(name, pw)
 		
-		return user_DB(parent = users_DB_key(), \
+		return user_DB(parent = users_DB_rootkey(), \
             				user_name = name, \
 							pw_hash = current_pw_hash, \
 							user_email = email, \
@@ -186,8 +186,14 @@ class user_DB(db.Model):
 
 ########## MESSAGE DATABASE ##########
 	
-def message_key(name = 'default'):
-    return db.Key.from_path('insider',name)
+def message_DB_rootkey(group = 'default'):
+	""" 
+		message_DB_rootkey takes a string and returns a key. 
+		The returned key is used as the parent key for the entire 
+		Message class. For this class a parent key isn't strictly 
+		necessary except to ensure consistency. 
+	"""
+    return db.Key.from_path('Message',key_name = group)
 		
 class Message(db.Model):
     ##required = True, will raise an exception if we try to create 
@@ -197,6 +203,7 @@ class Message(db.Model):
 	recipientID = db.IntegerProperty(required = True)
 	subject = db.StringProperty(required = False)
 	body = db.StringProperty(required = False)
+	msgURL = dbStringProperty(required = False)
 	##auto_now_add sets created to be the current time
 	created = db.DateTimeProperty(auto_now_add = True)
 	
@@ -209,7 +216,11 @@ class Message(db.Model):
 	@staticmethod
 	def parent_key(path):
 		return db.Key.from_path(path,'pages')
-		
+
+	@classmethod 
+	def db_by_id(cls, msgID):
+		return Message.get_by_id(msgID, message_DB_rootkey())
+	
     ## doesn't run on an instance of the class
     ## e.g. can be called on insiderContent
 	## get posts by URL path
@@ -422,10 +433,6 @@ class MainPage(BaseHandler):
 			qry = Message.all().filter("recipientID =", self.user.key().id())
 			self.render("summaryPanel.html", numMsgs = qry.count(), msgs = qry)
 			
-		
-			
-		
-		
 	
 	def post(self):
 	
@@ -457,7 +464,7 @@ class ViewMsg(BaseHandler):
 			self.error(404)
 			return
 				
-		self.render("discretePost.html", singlePost = singlePost, path = path, readerComments = readerComments)		
+		self.render("viewMsg.html", singlePost = singlePost, path = path, readerComments = readerComments)		
 
 
 	
@@ -497,6 +504,8 @@ class ComposeMessage(BaseHandler):
 		
 			
 			##store the new blog object
+			new_key = to_store.put()
+			to_store.msgURL = new_key
 			to_store.put()
 		
 			##only cache the relevant section. If it's a
