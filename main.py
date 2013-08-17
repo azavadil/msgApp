@@ -392,6 +392,10 @@ class BaseHandler(webapp2.RequestHandler):
 		webapp2.RequestHandler.initialize(self, *a, **kw)
 		uid = self.read_secure_cookie('user_id')
 		self.user = uid and user_DB.db_by_id(int(uid))
+		if self.user:
+			self.inbox = Message.all().filter("recipientIDs =", self.user.key().id()).order("-created")
+			self.outbox = Message.all().filter("authorID =", self.user.key().id())
+		
 		
     def get_prior_url(self):
 		"""
@@ -440,9 +444,7 @@ class MainPage(BaseHandler):
 		if not self.user: 
 			self.render("summaryPanel.html")
 		else:
-			inbox = Message.all().filter("recipientIDs =", self.user.key().id()).order("-created")
-			outbox = Message.all().filter("authorID =", self.user.key().id())
-			self.render("summaryPanel.html", numMsgs = inbox.count(), numSentMsgs = outbox.count(), msgs = inbox.fetch(20))
+			self.render("summaryPanel.html", numMsgs = self.inbox.count(), numSentMsgs = self.outbox.count(), msgs = self.inbox.fetch(20))
 			
 	
 	def post(self):
@@ -475,10 +477,7 @@ class ComposeMessage(BaseHandler):
 			self.error(400)
 			return
 		
-		inbox = Message.all().filter("recipientIDs =", self.user.key().id()).order("-created")
-		outbox = Message.all().filter("authorID =", self.user.key().id())
-		
-		self.render("composeMsg.html", numMsgs = inbox.count(), numMsgsSent = outbox.count())
+		self.render("composeMsg.html", numMsgs = self.inbox.count(), numMsgsSent = self.outbox.count())
 		
 	def post(self):
 		if not self.user:
@@ -569,14 +568,17 @@ class ViewMessage(BaseHandler):
 		
 		msg.hasBeenRead = "read-style" 
 		msg.put() 
-		inbox = Message.all().filter("recipientID =", self.user.key().id())
-		outbox = Message.all().filter("authorID =", self.user.key().id())
 		
-		self.render("viewMsg.html", message_HTML = markdown.markdown(msg.body), numMsgs = inbox.count(), numSentMsgs = outbox.count())
+		self.render("viewMsg.html", message_HTML = markdown.markdown(msg.body), numMsgs = self.inbox.count(), numSentMsgs = self.outbox.count())
 	
 	def post(self,path): 
 		msg = Message.get(db.Key(path[1:]))
-		msg.delete()
+		logging.error("ViewMsg = %d"%len(msg.recipientIDs))
+		if len(msg.recipientIDs) == 1: 
+			msg.delete()
+		else: 
+			msg.recipientIDs.remove(self.user.key().id())
+			msg.put()
 		self.redirect("/") 
 		
 ########## SIGNUP PAGE ##########						
