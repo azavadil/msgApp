@@ -102,6 +102,12 @@ def valid_password(user_password):
 		return True 
 	return False
 	
+def valid_groupname(groupname): 
+	GROUP_RE = re.compile(r"^[a-zA-Z0-9_]{3,10}$")
+	if GROUP_RE.match(groupname): 
+		return True
+	return False
+	
 
 ########## PERMALINK FUNCTION ##########
 
@@ -249,21 +255,20 @@ class Message(db.Model):
 		return cls.get_by_id(page_id,cls.parent_key(path))
     		
 ########## COMMENT DATABASE ##########
+
+def group_DB_rootkey(group = 'default'):
+	""" 
+		group_DB_rootkey takes a string and returns a key. 
+		The returned key is used as the parent key for the entire 
+		Message class. For this class a parent key isn't strictly 
+		necessary except to ensure consistency. 
+	"""
+	return db.Key.from_path('Group', group)
+
 	
-class postComment(db.Model):
-    ##required = True, will raise an exception if we try to create 
-    ##content without a title
-    cmt_title = db.StringProperty(required = False)
-    cmt_comment = db.TextProperty(required = True)
-    cmt_author = db.StringProperty(required = True)
-    cmt_url_path = db.StringProperty(required = True)  ##NTD:need to check for uniqueness
-    ##auto_now_add sets created to be the current time
-    created = db.DateTimeProperty(auto_now_add = True)
-    last_modified = db.DateTimeProperty(auto_now = True)
-    	
-    def render(self, b_summarize = None):
-    	self._render_text = self.cmt_comment.replace('\n','<br>')
-    	return render_str("formatted_comment.html", page = self)
+class Group(db.Model):
+    groupname = db.StringProperty(required = True)
+    groupIDs = db.ListProperty(long, required = True)
 	
     @staticmethod
     def parent_key(path):
@@ -448,13 +453,14 @@ class MainPage(BaseHandler):
 			
 	
 	def post(self):
-	
-      	
+		""" we have two cases where a form can be posted from the MainPage. 
+		    If the user has not logged in then we post login information. 
+			The app can also post from the MainPage when the user is 
+			making, joining, or leaving a group 
+		"""
 		##hold what the user entered
 		input_username = self.request.get('username')
 		input_password = self.request.get('password')
-	
-		logging.error("mainpage = %s, %s" %(input_username, input_password))	
 	
 		##check the password
 		user, pw_msg = user_DB.db_login(input_username,input_password)
@@ -467,7 +473,8 @@ class MainPage(BaseHandler):
 			self.redirect("/")
 		else:
 			self.render('base.html', name_provided = input_username, password_error = pw_msg) 
-
+		
+		
 
 	
 ########## COMPOSE MESSAGE ##########				
@@ -581,6 +588,40 @@ class ViewMessage(BaseHandler):
 			msg.put()
 		self.redirect("/") 
 		
+########## COMPOSE MESSAGE ##########				
+class ViewGroup(BaseHandler):
+	def get(self):
+		if not self.user:
+			self.error(400)
+			return
+		
+		## we're using the key as a url. The app extracts the URL (which is actually a key) 
+		## and uses the key to retrieve the message from the database. 
+		## use path[1:] to strip off the leading "/"
+		qry = Group.all().filter("groupIDs =", self.user.key().id()); 
+		
+		## check that the user that's logged in is actually a reipient of this message
+		## if not, fail silently. Don't give the user an more information 
+		
+		self.render("viewGroup.html", groups = qry)
+	
+	def post(self): 
+		make_groupname = self.request.get("make_groupname"); 
+		join_groupname = self.request.get("join_groupname"); 
+		del_groupname = self.request.get("del_groupname"); 
+		
+		error_msg = ""
+		if not valid_groupname(make_groupname): 
+			error_msg = "Please enter a valid groupname"
+			self.render("viewGroup.html", make_groupname = make_groupname, error = error_msg)
+		
+		if make_groupname != "": 
+			qry = Group.all().filter("groupname =", make_groupname.lower())
+			error_msg = "The group already exists" 
+			self.render("viewGroup.html", make_groupname = make_groupname, error = error_msg)
+			
+		
+		
 ########## SIGNUP PAGE ##########						
 class SignupPage(BaseHandler):
 	
@@ -693,6 +734,7 @@ PAGE_RE = r'(/(?:[a-zA-Z0-9_-]+)*)'
 
 app = webapp2.WSGIApplication([('/', MainPage),
 								('/newMsg', ComposeMessage),
+								('/group', ViewGroup), 
 								('/signup', Register),
 								('/logout',LogoutPage),
 								('/delete' + PAGE_RE, DeletePost), 

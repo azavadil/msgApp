@@ -7,7 +7,7 @@
 
 {% block sidebar %}
 	<!-- onClick we want to navigate to a blank message --> 
-	<a href="/newMsg"><button class='btn btn-danger btn-small' type="button">Compose</button></a>
+	<a href="/newMsg"><button class='btn btn-warning btn-small' type="button">Compose</button></a>
 	<div class = "sidebar"> 
 	
 		<!-- insert numMsgs --> 
@@ -17,7 +17,16 @@
 	<div class = "sidebar"> 
 		<a class="gray-link" href="/">Sent ( {{numSentMsgs}} )</a>
 	</div>
+	
+	<div class = "sidebar"> 
+		<a class="gray-link" href="/">Sent ( {{numSentMsgs}} )</a>
+	</div>
 
+	<div class = "sidebar"> 
+		<a class="gray-link" href="/group">Groups</a>
+	</div>
+
+	
 {% endblock %}
 
 
