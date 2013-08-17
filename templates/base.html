@@ -97,6 +97,15 @@
 					{% endblock %}
 				</div>
 				
+				<!-- this begins the section where we compose messages. When we compose a message 
+		     we leave the content blank allowing the content area to collapse --> 
+			<div class="row-fluid"> 
+				<div class="span9"> 
+					{% block msgblock %}
+					{% endblock %}
+				</div>
+			</div> 
+				
 			</div> 
 		{% endif %}
 		<!-- this block is only filled in if we go to the signup page --> 
@@ -108,14 +117,7 @@
 			{% endblock %}
 		</div>		
 			
-		<!-- this begins the section where we compose messages. When we compose a message 
-		     we leave the content blank allowing the content area to collapse --> 
-		<div class="row-fluid"> 
-			<div class="span12"> 
-				{% block msgblock %}
-				{% endblock %}
-			</div>
-		</div> 
+		
 	</div>
 
 	

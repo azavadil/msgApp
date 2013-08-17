@@ -1,4 +1,7 @@
+import sys
 import os
+sys.path.append(os.path.join(os.path.dirname(__file__), 'lib'))
+
 import webapp2
 import jinja2
 import hmac
@@ -12,13 +15,19 @@ import json
 import logging
 import time
 import hashsecret
+import markdown
 
 from google.appengine.ext import db
 from google.appengine.api import memcache
 
+
+
+
 template_dir = os.path.join(os.path.dirname(__file__), 'templates')
+
+
 jinja_env = jinja2.Environment(loader = jinja2.FileSystemLoader(template_dir),\
-								autoescape = True)
+								autoescape = True, extensions=['jinja2.ext.autoescape'])
 def render_str(template, **params):
 	t = jinja_env.get_template(template)
 	return t.render(params)
@@ -132,7 +141,7 @@ def make_url_datepath(input_string):
 					
 ########## DATABASE CLASSES ##########	
 def users_DB_rootkey(group = 'default'):
-    return db.Key.from_path('user_DB', key_name = group)	
+    return db.Key.from_path('user_DB', group)	
     ##the users_DB_key fuction returns an empty object
     ##that we can use for organization
 
@@ -193,17 +202,18 @@ def message_DB_rootkey(group = 'default'):
 		Message class. For this class a parent key isn't strictly 
 		necessary except to ensure consistency. 
 	"""
-    return db.Key.from_path('Message',key_name = group)
+	return db.Key.from_path('Message', group)
 		
 class Message(db.Model):
     ##required = True, will raise an exception if we try to create 
     ##content without a title
 	author = db.StringProperty(required = True)
 	authorID = db.IntegerProperty(required = True)
-	recipientID = db.IntegerProperty(required = True)
+	recipientIDs = db.ListProperty(long, required = True)
 	subject = db.StringProperty(required = False)
-	body = db.StringProperty(required = False)
-	msgURL = dbStringProperty(required = False)
+	body = db.TextProperty(required = False)
+	msgURL = db.StringProperty(required = False, indexed = False)
+	hasBeenRead = db.StringProperty(required = True, indexed = False)
 	##auto_now_add sets created to be the current time
 	created = db.DateTimeProperty(auto_now_add = True)
 	
@@ -430,8 +440,9 @@ class MainPage(BaseHandler):
 		if not self.user: 
 			self.render("summaryPanel.html")
 		else:
-			qry = Message.all().filter("recipientID =", self.user.key().id())
-			self.render("summaryPanel.html", numMsgs = qry.count(), msgs = qry)
+			inbox = Message.all().filter("recipientIDs =", self.user.key().id()).order("-created")
+			outbox = Message.all().filter("authorID =", self.user.key().id())
+			self.render("summaryPanel.html", numMsgs = inbox.count(), numSentMsgs = outbox.count(), msgs = inbox.fetch(20))
 			
 	
 	def post(self):
@@ -455,17 +466,6 @@ class MainPage(BaseHandler):
 		else:
 			self.render('base.html', name_provided = input_username, password_error = pw_msg) 
 
-########## DISCRETE PAGE ##########					
-class ViewMsg(BaseHandler):
-    def get(self, path):
-		
-		
-		if not self.user:
-			self.error(404)
-			return
-				
-		self.render("viewMsg.html", singlePost = singlePost, path = path, readerComments = readerComments)		
-
 
 	
 ########## COMPOSE MESSAGE ##########				
@@ -474,7 +474,11 @@ class ComposeMessage(BaseHandler):
 		if not self.user:
 			self.error(400)
 			return
-		self.render("composeMsg.html")
+		
+		inbox = Message.all().filter("recipientIDs =", self.user.key().id()).order("-created")
+		outbox = Message.all().filter("authorID =", self.user.key().id())
+		
+		self.render("composeMsg.html", numMsgs = inbox.count(), numMsgsSent = outbox.count())
 		
 	def post(self):
 		if not self.user:
@@ -488,6 +492,24 @@ class ComposeMessage(BaseHandler):
 		msg_body = self.request.get("body")
 		
 		
+		## check if the message is a global broadcast
+		if recipient.lower() == "all": 
+			recipients = db.Query(user_DB, keys_only=True)
+			
+			recipientIDs = map(lambda x: x.id(), list(recipients))
+			logging.error("composeMsg = %s, %s"%(recipientIDs,type(recipientIDs))) 
+			
+			to_store = Message(author = self.user.user_name,\
+							authorID = self.user.key().id(),\
+							recipientIDs = map(lambda x:x.id(),list(recipients)),\
+							subject = msg_subject,\
+							body = msg_body,\
+							hasBeenRead = "not-read-style")
+			to_store.put()
+			to_store.msgURL = "/" + str(to_store.key())
+			to_store.put()
+			self.redirect("/")
+		
 		##we have to query the database for the recipient
 		recipientEntity = user_DB.db_by_name(recipient) 
 		
@@ -498,14 +520,15 @@ class ComposeMessage(BaseHandler):
 	
 			to_store = Message(author = self.user.user_name,\
 							authorID = self.user.key().id(),\
-							recipientID = recipientEntity.key().id(),\
+							recipientIDs = [recipientEntity.key().id()],\
 							subject = msg_subject,\
-							body = msg_body)
+							body = msg_body,\
+							hasBeenRead = "not-read-style")
 		
 			
 			##store the new blog object
-			new_key = to_store.put()
-			to_store.msgURL = new_key
+			to_store.put()
+			to_store.msgURL = "/" + str(to_store.key())
 			to_store.put()
 		
 			##only cache the relevant section. If it's a
@@ -526,8 +549,36 @@ class ComposeMessage(BaseHandler):
 			self.render("composeMsg.html",recipient = recipient, subject = msg_subject, body = msg_body, error=error)
 
 
-			
-			
+########## COMPOSE MESSAGE ##########				
+class ViewMessage(BaseHandler):
+	def get(self,path):
+		if not self.user:
+			self.error(400)
+			return
+		
+		## we're using the key as a url. The app extracts the URL (which is actually a key) 
+		## and uses the key to retrieve the message from the database. 
+		## use path[1:] to strip off the leading "/"
+		msg = Message.get(db.Key(path[1:]))
+		
+		## check that the user that's logged in is actually a reipient of this message
+		## if not, fail silently. Don't give the user an more information 
+		if self.user.key().id() not in msg.recipientIDs: 
+			self.error(400)
+			return 
+		
+		msg.hasBeenRead = "read-style" 
+		msg.put() 
+		inbox = Message.all().filter("recipientID =", self.user.key().id())
+		outbox = Message.all().filter("authorID =", self.user.key().id())
+		
+		self.render("viewMsg.html", message_HTML = markdown.markdown(msg.body), numMsgs = inbox.count(), numSentMsgs = outbox.count())
+	
+	def post(self,path): 
+		msg = Message.get(db.Key(path[1:]))
+		msg.delete()
+		self.redirect("/") 
+		
 ########## SIGNUP PAGE ##########						
 class SignupPage(BaseHandler):
 	
@@ -636,12 +687,12 @@ class DeletePost(BaseHandler):
 ##anything that is in paratheses gets passed in to the handler
 ##the regular expression matches ()		
 
-PAGE_RE = r'(/(?:[a-zA-Z0-9_-]+/?)*)'
+PAGE_RE = r'(/(?:[a-zA-Z0-9_-]+)*)'
 
 app = webapp2.WSGIApplication([('/', MainPage),
 								('/newMsg', ComposeMessage),
 								('/signup', Register),
 								('/logout',LogoutPage),
 								('/delete' + PAGE_RE, DeletePost), 
-								( PAGE_RE, ViewMsg),
+								( PAGE_RE, ViewMessage),
 								],debug = True)

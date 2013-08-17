@@ -17,7 +17,7 @@ body {
 }
 
 @media screen and (min-width:980px) {
-    body { padding-top: 40px; }
+    body { padding-top: 60px; }
 }
 
 .heading { 
@@ -41,10 +41,14 @@ body {
 	margin-right: 20px;
 }
 
-	.gray-link {
-		color: gray;
-		text-decoration: none;
-	}
+.read-style{ 
+	color: lightgray; 
+}
+
+.gray-link {
+	color: gray;
+	text-decoration: none;
+}
 
 .gray-link:visited {
 	color: gray;
@@ -65,12 +69,18 @@ body {
 /* Formatting for the base template */
 #base-container { 
 	position: relative; 
-}
+}0
 
 
 /* Formatting for an error logging in */ 
 .fallbackBrowserError {
 	color:red; 
+}
+
+.nav-my-pull-right { 
+	float: none; 
+	margin: auto; 
+	list-style-type: none;
 }
 
 .compose-container { 
@@ -160,6 +170,10 @@ body {
 	border-collapse: collapse;
 	overflow: hidden; 
 	white-space: nowrap; 
+}
+
+.summary-table .not-read-style{ 
+	color: coral; 
 }
 
 .summary-table .gray {

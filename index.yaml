@@ -10,6 +10,18 @@ indexes:
 # automatically uploaded to the admin console when you next deploy
 # your application using appcfg.py.
 
+- kind: Message
+  properties:
+  - name: recipientID
+  - name: created
+    direction: desc
+
+- kind: Message
+  properties:
+  - name: recipientIDs
+  - name: created
+    direction: desc
+
 - kind: insiderContent
   properties:
   - name: author
