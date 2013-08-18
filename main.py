@@ -254,7 +254,7 @@ class Message(db.Model):
 	def by_id(cls,page_id,path):
 		return cls.get_by_id(page_id,cls.parent_key(path))
     		
-########## COMMENT DATABASE ##########
+########## USER GROUP DATABASE ##########
 
 def group_DB_rootkey(group = 'default'):
 	""" 
@@ -266,10 +266,11 @@ def group_DB_rootkey(group = 'default'):
 	return db.Key.from_path('Group', group)
 
 	
-class Group(db.Model):
+class UserGroup(db.Model):
     groupname = db.StringProperty(required = True)
     groupIDs = db.ListProperty(long, required = True)
-	
+    groupAuthor = db.IntegerProperty(required = True, indexed = False)
+    	
     @staticmethod
     def parent_key(path):
     	return db.Key.from_path(path,"comments")
@@ -484,7 +485,7 @@ class ComposeMessage(BaseHandler):
 			self.error(400)
 			return
 		
-		self.render("composeMsg.html", numMsgs = self.inbox.count(), numMsgsSent = self.outbox.count())
+		self.render("composeMsg.html", numMsgs = self.inbox.count(), numSentMsgs = self.outbox.count())
 		
 	def post(self):
 		if not self.user:
@@ -515,10 +516,38 @@ class ComposeMessage(BaseHandler):
 			to_store.msgURL = "/" + str(to_store.key())
 			to_store.put()
 			self.redirect("/")
+			
+			
+		group_qry = UserGroup.all().filter("groupname =", recipient).get()	
+		if group_qry: 
+			##create a new Message entity
+	
+			to_store = Message(author = self.user.user_name,\
+							authorID = self.user.key().id(),\
+							recipientIDs = group_qry.groupIDs,\
+							subject = msg_subject,\
+							body = msg_body,\
+							hasBeenRead = "not-read-style")
+		
+			
+			##store the new blog object
+			to_store.put()
+			to_store.msgURL = "/" + str(to_store.key())
+			to_store.put()
+		
+			##only cache the relevant section. If it's a
+			##frontpage writer, we need to cache the frontpage
+			##if it's a reader, we need to cache the reader
+			
+			##  cache_allpost("readers",True)
+			##cache the permalink page for the post
+			##  cache_singlepost(path_title,True)
+			##redirect to a permalink page, pass the id
+			self.redirect("/")
+	
 		
 		##we have to query the database for the recipient
 		recipientEntity = user_DB.db_by_name(recipient) 
-		
 		
 		
 		if recipientEntity:
@@ -598,28 +627,70 @@ class ViewGroup(BaseHandler):
 		## we're using the key as a url. The app extracts the URL (which is actually a key) 
 		## and uses the key to retrieve the message from the database. 
 		## use path[1:] to strip off the leading "/"
-		qry = Group.all().filter("groupIDs =", self.user.key().id()); 
+		groupsUserBelongsTo = UserGroup.all().filter("groupIDs =", self.user.key().id()); 
 		
 		## check that the user that's logged in is actually a reipient of this message
 		## if not, fail silently. Don't give the user an more information 
 		
-		self.render("viewGroup.html", groups = qry)
+		self.render("viewGroup.html", groups = groupsUserBelongsTo)
 	
 	def post(self): 
-		make_groupname = self.request.get("make_groupname"); 
-		join_groupname = self.request.get("join_groupname"); 
-		del_groupname = self.request.get("del_groupname"); 
+		
+		groupsUserBelongsTo = UserGroup.all().filter("groupIDs =", self.user.key().id());
+		input_groupname = self.request.get("groupname"); 
+		selected_action = self.request.get("selectedAction"); 		
+		 
+		
+		
 		
 		error_msg = ""
-		if not valid_groupname(make_groupname): 
+		if not valid_groupname(input_groupname): 
 			error_msg = "Please enter a valid groupname"
-			self.render("viewGroup.html", make_groupname = make_groupname, error = error_msg)
+			self.render("viewGroup.html", user_input_groupname = input_groupname, groups = groupsUserBelongsTo, error = error_msg)
 		
-		if make_groupname != "": 
-			qry = Group.all().filter("groupname =", make_groupname.lower())
-			error_msg = "The group already exists" 
-			self.render("viewGroup.html", make_groupname = make_groupname, error = error_msg)
+		if selected_action == "makeGroup": 
+			qry = UserGroup.all().filter("groupname =", input_groupname.lower()).get()
 			
+			if qry: 
+				error_msg = "The group already exists" 
+				self.render("viewGroup.html", user_input_groupname = input_groupname, groups = groupsUserBelongsTo, error = error_msg)
+			else: 
+				to_store = UserGroup(groupname = input_groupname.lower(), groupIDs = [self.user.key().id()], groupAuthor = self.user.key().id())
+				to_store.put()
+				self.redirect("/group")
+		
+		if selected_action == "joinGroup": 
+			qry = UserGroup.all().filter("groupname =", input_groupname.lower()).get()
+			if not qry: 
+				error_msg = "That group doesn't exist" 
+				self.render("viewGroup.html", user_input_groupname = input_groupname, groups = groupsUserBelongsTo, error = error_msg)
+			else: 
+				qry.groupIDs.append(self.user.key().id())
+				qry.put()
+				self.redirect("/group")
+		
+		if selected_action == "leaveGroup": 
+			qry = UserGroup.all().filter("groupname =", input_groupname.lower()).get()
+			if not qry: 
+				error_msg = "That group doesn't exist" 
+				self.render("viewGroup.html", user_input_groupname = input_groupname, groups = groupsUserBelongsTo, error = error_msg)
+			else: 
+				qry.groupIDs.remove(self.user.key().id())
+				qry.put()
+				self.redirect("/group")
+		
+		if selected_action == "deleteGroup": 
+			qry = UserGroup.all().filter("groupname =", input_groupname.lower()).get()
+			if not qry: 
+				error_msg = "That group doesn't exist" 
+				self.render("viewGroup.html", user_input_groupname = input_groupname, groups = groupsUserBelongsTo, error = error_msg)
+			elif qry.groupAuthor != self.user.key().id(): 
+				error_msg = "Only group author can delete group"
+				self.render("viewGroup.html", user_input_groupname = input_groupname, groups = groupsUserBelongsTo, error = error_msg)
+			else: 
+				qry.delete()
+				self.redirect("/group")
+				
 		
 		
 ########## SIGNUP PAGE ##########						
@@ -712,19 +783,7 @@ class LogoutPage(BaseHandler):
 		##send user to the page they came from
 		self.redirect("/")
 		
-class MakeGroup(BaseHandler): 
-	
-	def get(self): 
-		## only logged in users should read this page
-		if not self.user:
-			self.error(400)
-			return
 		
-		groupname = self.request.get("groupname")
-		logging.error("Makegroup = %s"%groupname)
-		self.redirect("/group") 
-		
-
 
 ########## DELETE POST ##########
 class DeletePost(BaseHandler): 
@@ -750,7 +809,6 @@ app = webapp2.WSGIApplication([('/', MainPage),
 								('/group', ViewGroup), 
 								('/signup', Register),
 								('/logout',LogoutPage),
-							 	('/MakeGroup', MakeGroup), 
 								('/delete' + PAGE_RE, DeletePost), 
 								( PAGE_RE, ViewMessage),
 								],debug = True)
