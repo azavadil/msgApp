@@ -711,6 +711,19 @@ class LogoutPage(BaseHandler):
 		self.handler_logout()
 		##send user to the page they came from
 		self.redirect("/")
+		
+class MakeGroup(BaseHandler): 
+	
+	def get(self): 
+		## only logged in users should read this page
+		if not self.user:
+			self.error(400)
+			return
+		
+		groupname = self.request.get("groupname")
+		logging.error("Makegroup = %s"%groupname)
+		self.redirect("/group") 
+		
 
 
 ########## DELETE POST ##########
@@ -737,6 +750,7 @@ app = webapp2.WSGIApplication([('/', MainPage),
 								('/group', ViewGroup), 
 								('/signup', Register),
 								('/logout',LogoutPage),
+							 	('/MakeGroup', MakeGroup), 
 								('/delete' + PAGE_RE, DeletePost), 
 								( PAGE_RE, ViewMessage),
 								],debug = True)

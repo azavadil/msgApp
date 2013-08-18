@@ -31,26 +31,47 @@
 
 
 {% block content %}
-  <div class="compose-container"> 
-	<table class="summary-table">
-		{% for msg in msgs %}
-			<tr class="{{loop.cycle('gray','')}}">
-				<td class="span2">
-					<a class = "{{msg.hasBeenRead}}" href="{{msg.msgURL}}">{{msg.author}}</a>
-				</td>
+	<div class="row")>
+  		<div class="col-lg-11"> 
+  
+  			<div class="panel">
+  	 			<div class="panel-heading">
+    				<h3 class="panel-title">Messages</h3>
+  				</div>
+			
+				<div class="panel-body">  
+					<table class="table">
+						<thead> 
+							<tr> 
+								<th>From</th> 
+								<th>Subject</th>
+								<th>Date</th> 
+							</tr>
+						</thead>
+						
+						<tbody>    
+						{% for msg in msgs %}
+							<tr>
+								<td>
+									<a class = "{{msg.hasBeenRead}}" href="{{msg.msgURL}}">{{msg.author}}</a>
+								</td>
 				
-				<td class="span10">
-					<a class = "{{msg.hasBeenRead}}" href="{{msg.msgURL}}">{{msg.subject}}</a>
-				</td>
+								<td>
+									<a class = "{{msg.hasBeenRead}}" href="{{msg.msgURL}}">{{msg.subject}}</a>
+								</td>
 				
-				<td class="span2">
-					<a class = "{{msg.hasBeenRead}}" href="{{msg.msgURL}}">{{ msg.created.strftime("%b %d, %Y") }}</a>
-				</td>
-					
-			</tr>
-		{% endfor %}
-	</table>			
-  </div> 
+								<td>
+									<a class = "{{msg.hasBeenRead}}" href="{{msg.msgURL}}">{{ msg.created.strftime("%b %d, %Y") }}</a>
+								</td>
+							</tr>
+						{% endfor %}
+		    			</tbody> 
+					</table>			
+  				</div>
+  			</div> <!-- end of panel --> 
+		
+		</div>  
+	</div> 
 {% endblock %}
 
 
