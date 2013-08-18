@@ -21,15 +21,17 @@ body {
     body { padding-top: 60px; }
 }
 
-.heading { 
-      font-family: Helvetica, Arial, sans-serif;
-      text-align: center; 
+/* Base template */ 
+
+.navbar-compose-btn { 
+	margin-top: 0.7%; 
 }
 
+
 .header {
-	height: 30px;
-	line-height: 30px;
-	margin-bottom: 10px;
+	height: 3%;
+	line-height: 3%;
+	margin-bottom: 1%px;
 }
 
 .controls {
@@ -85,7 +87,8 @@ body {
 }
 
 .compose-container { 
-	width: 80%; 
+	width: 100%;
+	border: 1px solid; 
 }
 
 	

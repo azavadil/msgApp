@@ -18,7 +18,7 @@
 
 
 {% block content %}
-  <div class = "compose-container"> 
+  <div class = "container"> 
 	<div class="navbar">
 		<div class="navbar-inner">
 			<ul class="nav">
@@ -28,20 +28,20 @@
 	</div>
 		
 		<form class = "msg-form" method="post">
-			  <label>
+			  <div class = "row">
 				<div>To</div>
-				<input class="span12" type="text" required name="recipient" value="{{recipient}}">
-			  </label>
+				<input class="col-lg-12" type="text" required name="recipient" value="{{recipient}}">
+			  </div>
 			  
-			  <label>
+			  <div class = "row">
 				<div>Subject</div>
-				<input class="span12" type="text" name="subject" value="{{subject}}">
-			  </label>
+				<input class="col-lg-12" type="text" name="subject" value="{{subject}}">
+			  </div>
 
-			  <label>
+			  <div class = "row">
 				<div>Message</div>
-				<textarea class="span12" rows="16" name="body">{{body}}</textarea>
-			  </label>
+				<textarea class="col-lg-12" rows="16" name="body">{{body}}</textarea>
+			  </div>
 
 			  <div class="error">
 			    {{error}}
@@ -52,5 +52,5 @@
 			  </div>
 
 		  </form>
-	</div> 
+  </div> 
 {% endblock %}
