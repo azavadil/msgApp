@@ -35,48 +35,51 @@
 	
 	<div class="container"> 
 	
-		<div class="row header">		
-			<div class="controls">
-				{% if user %}
-					{{user.user_name}} (<a class="gray-link" href="/logout">logout</a>)
+		
+		{% if user %}
+		<div class="row">		
+			<div class="col-lg-2 col-lg-offset-10">
+				{{user.user_name}} (<a class="gray-link" href="/logout">logout</a>)
 				
 				<!-- if the user isn't logged in then we show the login form --> 				
 				<!-- we need to check if we're on the signup page --> 
-				{% elif not isSignupPage %}
-					
-					 
-					
-					<form method="post">
-						<div class = "row"> 
-							
-							<div class="input-group col-lg-3 col-offset-6">
-								<span class="input-group-addon">Username</span>
-								<input class="form-control" placeholder="Username" required type = "text" pattern = "^\w{3,20}$" name = "username" value= "{{name_provided}}">     
-							</div>
-							
-						</div> 	
-						
-						<div class="row">
-							
-							<div class="input-group col-lg-3 col-offset-6">
-								<span class="input-group-addon">Username</span>
-							
-								<input class="form-control" placeholder="Password" type = "password" required pattern="(?=.*\d)(?=.*[a-z])(?=.*[A-Z])\w{6,20}" onchange="this.setCustomValidity(this.validity.patternMismatch ? 'Password must contain at least 6 characters, including UPPER/lowercase and numbers' : '')" name = "password" value="">
-							</div>
-						</div>
-							
-						<div = "row"> 
-							<!-- we need to check if we're working with an HTML5 browser --> 
-							<div class = "loginLabel">&nbsp</div>
-							<div class = "error"> 
-								{{password_error}}
-							</div> 
-						</div> 
+			</div> 
+		</div> 
+		{% elif not isSignupPage %}
 								
-						<input id = "mainPageSignInBtn" class="btn btn-primary" type = "submit" value = "Sign in">
-						<input type="hidden" id="password_error_dropbox" name="password_error_dropbox" value={{password_error}} />
-					</form>
-				{% endif %}
+			<form class="form-horizontal" role="form" method="post">
+					
+				<div class="form-group">
+					<label for="InputUsername" class="col-lg-2 col-lg-offset-7 control-label">Username</label>
+		 			<div class="col-lg-3">
+		    			<input class="form-control" id="InputUsername" placeholder="Username" required
+							type = "text" pattern="^\w{3,20}$" name = "username" value= "{{name_provided}}">
+					</div>
+				</div>
+				
+				<div class="form-group">
+	   				<label for="InputPassword" class="col-lg-2 col-lg-offset-7 control-label">Password</label> 
+	    			<div class="col-lg-3">
+	     				<input class="form-control" id="InputPassword" placeholder="Password" type = "password" required pattern="(?=.*\d)(?=.*[a-z])(?=.*[A-Z])\w{6,20}" 
+									onchange="this.setCustomValidity(this.validity.patternMismatch ? 'Password must contain at least 6 characters, including UPPER/lowercase and numbers' : '')" name = "password" value="">
+					</div>
+	  			</div>
+					
+				 <div class="form-group">
+	   				<div class="col-lg-offset-9 col-lg-3">
+	   					<button type="submit" class="btn btn-warning">Sign In</button>
+					</div>
+				</div>	 
+			</form>
+			<div = "row"> 
+				
+			<!-- we need to check if we're working with an HTML5 browser --> 
+			<div class = "loginLabel">&nbsp</div>
+				<div class = "error"> 
+					{{password_error}}
+				</div> 
+			</div> 
+			{% endif %}
 			
 			</div>
 		</div>

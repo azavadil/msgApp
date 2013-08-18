@@ -28,19 +28,24 @@
 	</div>
 		
 		<form class = "msg-form" method="post">
-			  <div class = "row">
-				<div>To</div>
-				<input class="col-lg-12" type="text" required name="recipient" value="{{recipient}}">
+			
+			<div class="row">								
+				<div class="input-group col-lg-12">
+					<span class="input-group-addon">To&nbsp&nbsp&nbsp&nbsp&nbsp&nbsp&nbsp&nbsp</span>
+					<input class="col-lg-12 form-control" placeholder="To" type="text" required name="recipient" value="{{recipient}}">
+				</div>
+			</div>	  
+			
+			<div class="row">								
+				<div class="input-group col-lg-12">
+					<span class="input-group-addon">Subject</span>
+					<input class="col-lg-12 form-control" placeholder="Subject" type="text" required name="subject" value="{{subject}}">
 			  </div>
-			  
-			  <div class = "row">
-				<div>Subject</div>
-				<input class="col-lg-12" type="text" name="subject" value="{{subject}}">
-			  </div>
-
-			  <div class = "row">
-				<div>Message</div>
-				<textarea class="col-lg-12" rows="16" name="body">{{body}}</textarea>
+			</div> 
+			
+			<div class = "row">
+				<div class="btn btn-warning">Message</div>
+				<textarea class="input-group col-lg-12" rows="16" name="body">{{body}}</textarea>
 			  </div>
 
 			  <div class="error">
