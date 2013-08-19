@@ -123,40 +123,25 @@ def get_id_from(input_string):
 		
     return int(input_string[re.search(regexp,input_string).start():\
 				re.search(regexp,input_string).end()])
-
-def make_urlpath(input_string):
-
-    input_string = input_string.replace(' ','-')
-	
-    ##we have to find at least one eligible character
-    ##then we optionally find additional characters
-    regexp = r'[a-zA-Z0-9_-]+'
-    result = ''.join(re.findall(regexp,input_string))
-    return result
-
-def make_url_datepath(input_string):
-    """(str) -> str
-        make_url_datepath generates a string in the format
-       /year/day/inputstring where days is a value between 1-366
-       e.g. /2012/150/lebron is good"""
-    year = time.localtime().tm_year
-    day_of_year = time.localtime().tm_yday
-    return '/' + str(year) + '/' + str(day_of_year) + '/' + input_string
 		
-			
 					
 ########## DATABASE CLASSES ##########	
 def users_DB_rootkey(group = 'default'):
-    return db.Key.from_path('user_DB', group)	
-    ##the users_DB_key fuction returns an empty object
-    ##that we can use for organization
+	""" 	
+		parent keys are used to ensure all users are in the same entity group. 
+		The parent key is in the form kind/key_name (e.g. user_DB/'default') 
+		Child keys are in the format kind/parent/ID (e.g. user_DB/'default'/XXXXXX)
+		
+		There's an equivalent format user_DB(key_name=group) 
+	"""
+	return db.Key.from_path('user_DB', group)	
+    
 
 class user_DB(db.Model):
     ##required = True, will raise an exception if we try to create 
     ##content without a title
     user_name = db.StringProperty(required = True)
     pw_hash = db.StringProperty(required = True)
-    user_email = db.StringProperty(required = False)
     ##auto_now_add sets created to be the current time
     created = db.DateTimeProperty(auto_now_add = True)
     last_modified = db.DateTimeProperty(auto_now = True)
@@ -171,23 +156,14 @@ class user_DB(db.Model):
     	return u
 		
 		
-    @classmethod
+    @classmethod   
     def register(cls, name, pw, email = None):
-	
-		## replace these values with actual values 
-		frontpage_authors = ['alan','bob','carol']
-
-		frnt_author = False
-		if name in frontpage_authors:
-			frnt_author = True
 		
 		current_pw_hash = make_pw_hash(name, pw)
 		
-		return user_DB(parent = users_DB_rootkey(), \
-            				user_name = name, \
-							pw_hash = current_pw_hash, \
-							user_email = email, \
-            				frnt_author = frnt_author)
+		return user_DB(parent = users_DB_rootkey(),\
+            				user_name = name,\
+							pw_hash = current_pw_hash)
 
     @classmethod
     def db_login(cls, name, pw):
@@ -227,32 +203,10 @@ class Message(db.Model):
 		self._render_text = self.body.replace('\n','<br>')
 		return render_str("formattedMsg.html", page = self, summarize_text = b_summarize)
     	
-    ##doesn't need an instance of the class
-    ##e.g. can be called on insiderContent 
-	@staticmethod
-	def parent_key(path):
-		return db.Key.from_path(path,'pages')
-
 	@classmethod 
 	def db_by_id(cls, msgID):
 		return Message.get_by_id(msgID, message_DB_rootkey())
 	
-    ## doesn't run on an instance of the class
-    ## e.g. can be called on insiderContent
-	## get posts by URL path
-	
-	@classmethod
-	def by_path(cls,path):
-		q = cls.all()
-		q.ancestor(cls.parent_key(path))
-		q.order("-created")
-		return q
-    
-	## get posts by ID 
-	
-	@classmethod
-	def by_id(cls,page_id,path):
-		return cls.get_by_id(page_id,cls.parent_key(path))
     		
 ########## USER GROUP DATABASE ##########
 
@@ -263,7 +217,7 @@ def group_DB_rootkey(group = 'default'):
 		Message class. For this class a parent key isn't strictly 
 		necessary except to ensure consistency. 
 	"""
-	return db.Key.from_path('Group', group)
+	return db.Key.from_path('UserGroup', group)
 
 	
 class UserGroup(db.Model):
@@ -271,16 +225,7 @@ class UserGroup(db.Model):
     groupIDs = db.ListProperty(long, required = True)
     groupAuthor = db.IntegerProperty(required = True, indexed = False)
     	
-    @staticmethod
-    def parent_key(path):
-    	return db.Key.from_path(path,"comments")
-		
-    @classmethod
-    def by_path(cls,path):
-    	q = cls.all()
-    	q.ancestor(cls.parent_key(path))
-    	q.order("-created")
-    	return q
+   
 
 
 ########## CACHING FUNCTIONS ##########		
@@ -291,48 +236,43 @@ class UserGroup(db.Model):
 
 	
 def cache_user(userID, update = False):
-	""" (str, bool) -> str 
-		param front_val: string that's used set construct database keys
+	""" (str, bool) -> user_DB entity 
+		param userID: string that's used as database key
         param update: specifies whether the cache should be overwritten
 	"""
-
-	user_result = memcache.get(key)
+	user_result = memcache.get(userID)
 	if user_result is None or update:
+		logging.error("Cache_user - DB hit")
 		user_result = user_DB.db_by_id(int(userID))	
-		memcache.set(key, user_result)
+		memcache.set(userID, user_result)
 	return user_result
 
-
-##  cache_singlepost is applied to cache a single post
-
-# def cache_singlepost(key_val,update = False):
-    # """(str) -> str or Nonetype"""
-
-    # cache_key = str(key_val)
-    # ##keys have to be strings
-    # ##the key is a string of the path
-    # singlepost_res = memcache.get(cache_key)
-    # if singlepost_res is None or update:
-		# logging.error("cache_singlePost - DB SINGLEPOST QUERY")
-		# singlepost_res = insiderContent.by_path(key_val).get()
-		
-		# ##return None if db is empty
-		# if not singlepost_res:
-			# return None
-		# memcache.set(cache_key,singlepost_res)
-    # return singlepost_res	
+def cache_user_group(userID, update = False): 
+	""" (int, bool) -> Group entities
+		param userID: string that's used as database key
+        param update: specifies whether the cache should be overwritten
+	"""
+	logging.error("cache_user_group called")
 	
-# def cache_comments(key_val,update = False):
-    # ##key_val is the url_path
-	# cache_key = "cmt_" + str(key_val)
-	# comment_res = memcache.get(cache_key)
-	# if comment_res is None or update: 
-		# comment_res = list(postComment.by_path(key_val))
-	# if not comment_res:
-		# return None
-	# memcache.set(cache_key,comment_res)
-	# return comment_res
-
+	user_group_key = "group_" + str(userID)
+	group_result = memcache.get(user_group_key)
+	if group_result is None or update: 
+		group_result = UserGroup.all().filter("groupIDs =",userID).fetch(10)
+		logging.error("cache_user_group, update %s, %s"%(user_group_key, group_result))
+		memcache.set(user_group_key, group_result)
+	return group_result
+		
+def cache_group(group_name, update = False): 
+	""" (str, bool) -> Group entities
+		param group_name: string that's used as database key
+        param update: specifies whether the cache should be overwritten
+	"""
+	
+	group_result = memcache.get(group_name)
+	if group_result is None or update: 
+		group_result = UserGroup.all().filter("groupname =",group_name.lower()).get()
+		memcache.set(group_name, group_result)
+	return group_result
 
 ########## REQUEST HANDLERS ##########
 	
@@ -362,6 +302,11 @@ class BaseHandler(webapp2.RequestHandler):
             if expression 1 and expression 2 match, the return value is expression 1
             if expression 1 and expression 2 don't match, the return value is expression 2
 			if expression 1 or expression 2 is False, the return value is false
+			
+			check_secure_val takes the cookie value which is in the format 
+			userID | hashed value and returns the userID portion if the hashed value
+			validates
+			e.g. 1 | 2b1423ca5183a0ff98bda78157ac08df would return 1 
         """
         
     	cookie_val = self.request.cookies.get(name)
@@ -388,46 +333,12 @@ class BaseHandler(webapp2.RequestHandler):
            initialize checks the cookie and sets the cookie if the cookie is valid
         """
 		webapp2.RequestHandler.initialize(self, *a, **kw)
-		uid = self.read_secure_cookie('user_id')
-		self.user = uid and user_DB.db_by_id(int(uid))
+		uid = self.read_secure_cookie('user_id')				## return string value of user ID
+		self.user = uid and cache_user(uid)
 		if self.user:
 			self.inbox = Message.all().filter("recipientIDs =", self.user.key().id()).order("-created")
 			self.outbox = Message.all().filter("authorID =", self.user.key().id())
-		
-		
-    def get_prior_url(self):
-		"""
-			get_prior_url is used in Signup to redirect the user back to 
-			whatever page they initiated the signup from. 
-			Convience that returns the user to the page they were on when 
-			they initiated the signup process
 			
-			referer: the referer is sent as part of every http request and 
-			is the page that generated the http request (i.e. the page the user
-			is coming from)
-		"""
-		return self.request.headers.get('referer','/')
-	
-    def get_prior_url_set_next_url(self):
-		"""
-			get_prior_url is used in SignupPage and LoginPage. We extract the hidden field 
-			prior_url from the form and use the result to redirect the user back to whatever
-			page they were on when they initiated the signup/login process
-		"""
-			
-		next_url = str(self.request.get('prior_url'))
-		logging.error("baseHandlers - get_prior_url_set_next_url - next_url = %s" %next_url)
-		
-		## check that we have a url and the url is not the login page (wrt login page, 
-		## if the user came from the login page we don't want to redirect back to the login 
-		## page when we finish the signup/login process
-		if not next_url or next_url.startswith('/login'):
-			next_url = '/'
-		## strip off trailing '/'
-		if len(next_url) > 1 and next_url[-1] == '/':
-			next_url = next_url[:-1]
-		return next_url
-	
     def notfound(self):
 		self.error(404)
 		self.write('<h1>404: Note Found</h1> Sorry, my friend, but that page does not exist. ')					
@@ -498,14 +409,15 @@ class ComposeMessage(BaseHandler):
 			recipientIDs = map(lambda x: x.id(), list(recipients))
 			logging.error("composeMsg = %s, %s"%(recipientIDs,type(recipientIDs))) 
 			
-			to_store = Message(author = self.user.user_name,\
+			to_store = Message(parent = message_DB_rootkey(),\
+							author = self.user.user_name,\
 							authorID = self.user.key().id(),\
 							recipientIDs = map(lambda x:x.id(),list(recipients)),\
 							subject = msg_subject,\
 							body = msg_body,\
 							hasBeenRead = "not-read-style")
 			to_store.put()
-			to_store.msgURL = "/" + str(to_store.key())
+			to_store.msgURL = "/" + str(to_store.key().id())
 			to_store.put()
 			self.redirect("/")
 			
@@ -514,7 +426,8 @@ class ComposeMessage(BaseHandler):
 		if group_qry: 
 			##create a new Message entity
 	
-			to_store = Message(author = self.user.user_name,\
+			to_store = Message(parent = message_DB_rootkey(),\
+							author = self.user.user_name,\
 							authorID = self.user.key().id(),\
 							recipientIDs = group_qry.groupIDs,\
 							subject = msg_subject,\
@@ -522,30 +435,30 @@ class ComposeMessage(BaseHandler):
 							hasBeenRead = "not-read-style")
 		
 			
-			##store the new blog object
-			to_store.put()
-			to_store.msgURL = "/" + str(to_store.key())
-			to_store.put()
-		
-			##only cache the relevant section. If it's a
-			##frontpage writer, we need to cache the frontpage
-			##if it's a reader, we need to cache the reader
+			##
+			# Implementation note: 
+			# --------------------
+			# The entity key is also used as the URL. The numerical ID that is assigned by the system
+			# is need to complete the key. The entity is stored completing the key, then the entity 
+			# is updated with the key value 
+			##
 			
-			##  cache_allpost("readers",True)
-			##cache the permalink page for the post
-			##  cache_singlepost(path_title,True)
-			##redirect to a permalink page, pass the id
+			to_store.put()
+			##[NTD: replace with allocateID] 
+			to_store.msgURL = "/" + str(to_store.key().id())
+			to_store.put()
 			self.redirect("/")
 	
 		
-		##we have to query the database for the recipient
+		##Query the database for the recipient
 		recipientEntity = user_DB.db_by_name(recipient) 
 		
 		
 		if recipientEntity:
 			##create a new Message entity
 	
-			to_store = Message(author = self.user.user_name,\
+			to_store = Message(parent = message_DB_rootkey(),\
+							author = self.user.user_name,\
 							authorID = self.user.key().id(),\
 							recipientIDs = [recipientEntity.key().id()],\
 							subject = msg_subject,\
@@ -555,17 +468,8 @@ class ComposeMessage(BaseHandler):
 			
 			##store the new blog object
 			to_store.put()
-			to_store.msgURL = "/" + str(to_store.key())
+			to_store.msgURL = "/" + str(to_store.key().id())
 			to_store.put()
-		
-			##only cache the relevant section. If it's a
-			##frontpage writer, we need to cache the frontpage
-			##if it's a reader, we need to cache the reader
-			
-			##  cache_allpost("readers",True)
-			##cache the permalink page for the post
-			##  cache_singlepost(path_title,True)
-			##redirect to a permalink page, pass the id
 			self.redirect("/")
 			
 		else: 
@@ -586,7 +490,7 @@ class ViewMessage(BaseHandler):
 		## we're using the key as a url. The app extracts the URL (which is actually a key) 
 		## and uses the key to retrieve the message from the database. 
 		## use path[1:] to strip off the leading "/"
-		msg = Message.get(db.Key(path[1:]))
+		msg = Message.db_by_id(int(path[1:]))
 		
 		## check that the user that's logged in is actually a reipient of this message
 		## if not, fail silently. Don't give the user an more information 
@@ -609,7 +513,7 @@ class ViewMessage(BaseHandler):
 			msg.put()
 		self.redirect("/") 
 		
-########## COMPOSE MESSAGE ##########				
+########## GROUPS ##########				
 class ViewGroup(BaseHandler):
 	def get(self):
 		if not self.user:
@@ -619,7 +523,9 @@ class ViewGroup(BaseHandler):
 		## we're using the key as a url. The app extracts the URL (which is actually a key) 
 		## and uses the key to retrieve the message from the database. 
 		## use path[1:] to strip off the leading "/"
-		groupsUserBelongsTo = UserGroup.all().filter("groupIDs =", self.user.key().id()); 
+		groupsUserBelongsTo = cache_user_group(self.user.key().id()); 
+		temp = UserGroup.all().filter("groupIDs = ", self.user.key().id()).get()
+		logging.error("ViewGroup/Get groups =%s, %s"%(groupsUserBelongsTo,temp))
 		
 		## check that the user that's logged in is actually a reipient of this message
 		## if not, fail silently. Don't give the user an more information 
@@ -628,11 +534,9 @@ class ViewGroup(BaseHandler):
 	
 	def post(self): 
 		
-		groupsUserBelongsTo = UserGroup.all().filter("groupIDs =", self.user.key().id());
+		groupsUserBelongsTo = cache_user_group(self.user.key().id());
 		input_groupname = self.request.get("groupname"); 
 		selected_action = self.request.get("selectedAction"); 		
-		 
-		
 		
 		
 		error_msg = ""
@@ -641,34 +545,39 @@ class ViewGroup(BaseHandler):
 			self.render("viewGroup.html", user_input_groupname = input_groupname, groups = groupsUserBelongsTo, error = error_msg)
 		
 		if selected_action == "makeGroup": 
-			qry = UserGroup.all().filter("groupname =", input_groupname.lower()).get()
+			qry = cache_group(input_groupname) 
 			
 			if qry: 
-				error_msg = "The group already exists" 
+				error_msg = "That group already exists" 
 				self.render("viewGroup.html", user_input_groupname = input_groupname, groups = groupsUserBelongsTo, error = error_msg)
-			else: 
-				to_store = UserGroup(groupname = input_groupname.lower(), groupIDs = [self.user.key().id()], groupAuthor = self.user.key().id())
+			else:
+				to_store = UserGroup(parent = group_DB_rootkey(), groupname = input_groupname.lower(),\
+							groupIDs = [self.user.key().id()], groupAuthor = self.user.key().id())
 				to_store.put()
+				cache_group(input_groupname, update=True)
+				cache_user_group(self.user.key().id(), update=True)
 				self.redirect("/group")
 		
 		if selected_action == "joinGroup": 
-			qry = UserGroup.all().filter("groupname =", input_groupname.lower()).get()
+			qry = cache_group(input_groupname)
 			if not qry: 
 				error_msg = "That group doesn't exist" 
 				self.render("viewGroup.html", user_input_groupname = input_groupname, groups = groupsUserBelongsTo, error = error_msg)
 			else: 
 				qry.groupIDs.append(self.user.key().id())
 				qry.put()
+				cache_user_group(self.user.key().id(), update=True)
 				self.redirect("/group")
 		
 		if selected_action == "leaveGroup": 
-			qry = UserGroup.all().filter("groupname =", input_groupname.lower()).get()
+			qry = cache_group(input_groupname)
 			if not qry: 
 				error_msg = "That group doesn't exist" 
 				self.render("viewGroup.html", user_input_groupname = input_groupname, groups = groupsUserBelongsTo, error = error_msg)
 			else: 
 				qry.groupIDs.remove(self.user.key().id())
 				qry.put()
+				cache_user_group(self.user.key().id(), update=True)
 				self.redirect("/group")
 		
 		if selected_action == "deleteGroup": 
@@ -680,7 +589,11 @@ class ViewGroup(BaseHandler):
 				error_msg = "Only group author can delete group"
 				self.render("viewGroup.html", user_input_groupname = input_groupname, groups = groupsUserBelongsTo, error = error_msg)
 			else: 
+				## we have a problem here in that we need to update the cache for all members of the group
 				qry.delete()
+				for user in qry.groupIDs: 
+					cache_user_group(user, update=True)
+				
 				self.redirect("/group")
 				
 		
@@ -693,12 +606,6 @@ class SignupPage(BaseHandler):
 			self.error(400)
 			return
 			
-		## establish prior url so use gets returned to whatever page they were on 
-		## when they complete signup
-		prior_url = self.get_prior_url()
-		## we fill in prior_url as a hidden field in the signup for 
-		## when the form is posted we extract prior_url and redirect the user
-		## to the URL they came from
 		self.render("signupPage.html", isSignupPage = True)
 	
 	def post(self):
@@ -760,10 +667,11 @@ class Register(SignupPage):
 			self.render('signupPage.html', fallback_error = msg, isSignupPage = True)
 		else:
 			email_addr = self.input_username + "@umail.com"
-			user = user_DB.register(self.input_username, self.input_password, email_addr)
+			user = user_DB.register(self.input_username, self.input_password)
 			user.put()
 			
 			self.handler_login(user)
+			## [NTD: uncomment] cache_user(user.key().id())
 			self.redirect("/")
 			
 		

@@ -46,8 +46,6 @@
 			</div> 
 		</div> 
 		{% elif not isSignupPage %}
-		
-		
 									
 			<form class="form-horizontal" role="form" method="post">
 					
@@ -76,11 +74,11 @@
 			<div = "row"> 
 				
 			<!-- we need to check if we're working with an HTML5 browser --> 
-			<div class = "loginLabel">&nbsp</div>
-				<div class = "error"> 
-					{{password_error}}
-				</div> 
-			</div> 
+				{% if password_error %}
+					<div class = "row"></div>
+						<div class = "col-lg-1 col-lg-offset-9 label label-danger">{{password_error}}</div> 
+					</div>
+				{% endif %} 
 			{% endif %}
 			
 			</div>

@@ -1,3 +1,8 @@
 not implemented: 
 
 html escaping in posts
+
+
+1. delete a group
+
+would need to refactor the code so that we update each cache_user_group
