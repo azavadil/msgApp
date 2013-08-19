@@ -194,7 +194,7 @@ class Message(db.Model):
 	recipientIDs = db.ListProperty(long, required = True)
 	subject = db.StringProperty(required = False)
 	body = db.TextProperty(required = False)
-	hasBeenRead = db.StringProperty(required = True, indexed = False)
+	hasNotBeenRead = db.ListProperty(int, required = True, indexed = False)
 	##auto_now_add sets created to be the current time
 	created = db.DateTimeProperty(auto_now_add = True)
 	
@@ -343,14 +343,16 @@ class BaseHandler(webapp2.RequestHandler):
 ########## FRONT PAGE ##########	
 class MainPage(BaseHandler):
 	def get(self):
-		##query the database for all msgs in the users inbox 
-		## userInbox = cache_inbox(self.user)   
 		
 		## pass the inbox as a parameter to render 
 		if not self.user: 
 			self.render("summaryPanel.html")
 		else:
-			self.render("summaryPanel.html", numMsgs = self.inbox.count(), numSentMsgs = self.outbox.count(), msgs = self.inbox.fetch(20))
+			self.render("summaryPanel.html",\
+						numMsgs = self.inbox.count(),\
+						numSentMsgs = self.outbox.count(),\
+						msgs = self.inbox.fetch(20),\
+						user = self.user)
 			
 	
 	def post(self):
@@ -375,7 +377,20 @@ class MainPage(BaseHandler):
 		else:
 			self.render('base.html', name_provided = input_username, password_error = pw_msg) 
 		
+class SentPage(BaseHandler):
+	def get(self):
 		
+		## pass the inbox as a parameter to render 
+		if not self.user: 
+			self.error(400)
+			return 
+		else:
+			self.render("sentPanel.html",\
+						numMsgs = self.inbox.count(),\
+						numSentMsgs = self.outbox.count(),\
+						msgs = self.outbox.fetch(20),\
+						user = self.user)
+					
 
 	
 ########## COMPOSE MESSAGE ##########				
@@ -412,7 +427,7 @@ class ComposeMessage(BaseHandler):
 							recipientIDs = map(lambda x:x.id(),list(recipients)),\
 							subject = msg_subject,\
 							body = msg_body,\
-							hasBeenRead = "not-read-style")
+							hasNotBeenRead = map(lambda x:x.id(),list(recipients)))
 			to_store.put()
 			self.redirect("/")
 			
@@ -427,7 +442,7 @@ class ComposeMessage(BaseHandler):
 							recipientIDs = group_qry.groupIDs,\
 							subject = msg_subject,\
 							body = msg_body,\
-							hasBeenRead = "not-read-style")
+							hasNotBeenRead = group_qry.groupIDs)
 		
 			to_store.put()
 			self.redirect("/")
@@ -446,7 +461,7 @@ class ComposeMessage(BaseHandler):
 							recipientIDs = [recipientEntity.key().id()],\
 							subject = msg_subject,\
 							body = msg_body,\
-							hasBeenRead = "not-read-style")
+							hasNotBeenRead = [recipientEntity.key().id()])
 		
 			
 			##store the new blog object
@@ -488,8 +503,9 @@ class ViewMessage(BaseHandler):
 			self.error(400)
 			return 
 		
-		msg.hasBeenRead = "read-style" 
-		msg.put() 
+		if self.user.key().id() in msg.hasNotBeenRead: 
+			msg.hasNotBeenRead.remove(self.user.key().id()) 
+			msg.put() 
 		
 		self.render("viewMsg.html", message_HTML = markdown.markdown(msg.body), numMsgs = self.inbox.count(), numSentMsgs = self.outbox.count())
 	
@@ -520,7 +536,7 @@ class ViewGroup(BaseHandler):
 		## check that the user that's logged in is actually a reipient of this message
 		## if not, fail silently. Don't give the user an more information 
 		
-		self.render("viewGroup.html", groups = groupsUserBelongsTo)
+		self.render("viewGroup.html", groups = groupsUserBelongsTo, numMsgs = self.inbox.count(), numSentMsgs = self.outbox.count())
 	
 	def post(self): 
 		
@@ -533,7 +549,8 @@ class ViewGroup(BaseHandler):
 		if not valid_groupname(input_groupname): 
 			error_msg = "Please enter a valid groupname"
 			self.render("viewGroup.html", user_input_groupname = input_groupname, groups = groupsUserBelongsTo, error = error_msg)
-		
+			return
+			
 		if selected_action == "makeGroup": 
 			qry = cache_group(input_groupname) 
 			
@@ -565,14 +582,17 @@ class ViewGroup(BaseHandler):
 				error_msg = "That group doesn't exist" 
 				self.render("viewGroup.html", user_input_groupname = input_groupname, groups = groupsUserBelongsTo, error = error_msg)
 			else: 
-				qry = UserGroup.all().filter("groupname =", input_groupname).get()
-				qry.groupIDs.remove(self.user.key().id())
-				qry.put()
-				cache_user_group(self.user.key().id(), update=True)
-				self.redirect("/group")
+				if self.user.key().id() not in qry.groupIDs: 
+					error_msg = "You don't belong to that group" 
+					self.render("viewGroup.html", user_input_groupname = input_groupname, groups = groupsUserBelongsTo, error = error_msg)
+				else:
+					qry.groupIDs.remove(self.user.key().id())
+					qry.put()
+					cache_user_group(self.user.key().id(), update=True)
+					self.redirect("/group")
 		
 		if selected_action == "deleteGroup": 
-			qry = UserGroup.all().filter("groupname =", input_groupname.lower()).get()
+			qry = cache_group(input_groupname)
 			if not qry: 
 				error_msg = "That group doesn't exist" 
 				self.render("viewGroup.html", user_input_groupname = input_groupname, groups = groupsUserBelongsTo, error = error_msg)
@@ -584,7 +604,6 @@ class ViewGroup(BaseHandler):
 				qry.delete()
 				for user in qry.groupIDs: 
 					cache_user_group(user, update=True)
-				
 				self.redirect("/group")
 				
 		
@@ -675,20 +694,6 @@ class LogoutPage(BaseHandler):
 		self.redirect("/")
 		
 		
-
-########## DELETE POST ##########
-class DeletePost(BaseHandler): 
-	
-	def get(self, path):
-		if not self.user:
-			self.error(400)
-			return
-		
-			
-		logging.error('deletePost - get - path %s'%path)
-		markedForDeletion = insiderContent.by_path(path).get()
-		insiderContent.delete(markedForDeletion); 		
-		self.redirect("/edit")
 		
 ##anything that is in paratheses gets passed in to the handler
 ##the regular expression matches ()		
@@ -699,7 +704,7 @@ app = webapp2.WSGIApplication([('/', MainPage),
 								('/newMsg', ComposeMessage),
 								('/group', ViewGroup), 
 								('/signup', Register),
+								('/sent', SentPage), 
 								('/logout',LogoutPage),
-								('/delete' + PAGE_RE, DeletePost), 
 								( PAGE_RE, ViewMessage),
 								],debug = True)

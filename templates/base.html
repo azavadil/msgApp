@@ -46,34 +46,41 @@
 			</div> 
 		</div> 
 		{% elif not isSignupPage %}
-									
-			<form class="form-horizontal" role="form" method="post">
-					
-				<div class="form-group">
-					<label for="InputUsername" class="col-lg-2 col-lg-offset-7 control-label">Username</label>
-		 			<div class="col-lg-3">
-		    			<input class="form-control" id="InputUsername" placeholder="Username" required
-							type = "text" pattern="^\w{3,20}$" name = "username" value= "{{name_provided}}">
-					</div>
-				</div>
-				
-				<div class="form-group">
-	   				<label for="InputPassword" class="col-lg-2 col-lg-offset-7 control-label">Password</label> 
-	    			<div class="col-lg-3">
-	     				<input class="form-control" id="InputPassword" placeholder="Password" type = "password" required pattern="(?=.*\d)(?=.*[a-z])(?=.*[A-Z])\w{6,20}" 
-									onchange="this.setCustomValidity(this.validity.patternMismatch ? 'Password must contain at least 6 characters, including UPPER/lowercase and numbers' : '')" name = "password" value="">
-					</div>
-	  			</div>
-					
-				 <div class="form-group">
-	   				<div class="col-lg-offset-9 col-lg-3">
-	   					<button type="submit" class="btn btn-warning">Sign In</button>
-					</div>
-				</div>	 
-			</form>
-			<div = "row"> 
-				
+							
+		
+		
+			<div class="panel my-jumbotron col-lg-5 col-lg-offset-7">
+				<div class="panel-body	">
+		
+					<form class="form-horizontal" role="form" method="post">
+							
+						<div class="form-group">
+							<label for="InputUsername" class="col-lg-5 control-label">Username</label>
+							<div class="col-lg-7">
+								<input class="form-control" id="InputUsername" placeholder="Username" required
+									type = "text" pattern="^\w{3,20}$" name = "username" value= "{{name_provided}}">
+							</div>
+						</div>
+						
+						<div class="form-group">
+							<label for="InputPassword" class="col-lg-5 control-label">Password</label> 
+							<div class="col-lg-7">
+								<input class="form-control" id="InputPassword" placeholder="Password" type = "password" required pattern="(?=.*\d)(?=.*[a-z])(?=.*[A-Z])\w{6,20}" 
+											onchange="this.setCustomValidity(this.validity.patternMismatch ? 'Password must contain at least 6 characters, including UPPER/lowercase and numbers' : '')" name = "password" value="">
+							</div>
+						</div>
+							
+						 <div class="form-group">
+							<div class="col-lg-offset-5 col-lg-3">
+								<button type="submit" class="btn btn-warning">Sign In</button>
+							</div>
+						</div>	 
+					</form>
+				</div>  <!-- end panel body -->
+			</div>  <!-- end panel -->
+
 			<!-- we need to check if we're working with an HTML5 browser --> 
+				<div = "row"> 
 				{% if password_error %}
 					<div class = "row"></div>
 						<div class = "col-lg-1 col-lg-offset-9 label label-danger">{{password_error}}</div> 
@@ -96,17 +103,8 @@
 					{% block content %}
 					{% endblock %}
 				</div>
-				
-				<!-- this begins the section where we compose messages. When we compose a message 
-		     we leave the content blank allowing the content area to collapse --> 
-			<div class="row"> 
-				<div class="col-log-9"> 
-					{% block msgblock %}
-					{% endblock %}
-				</div>
-			</div> 
-				
-			</div> 
+					
+			</div> <!-- end row --> 
 		{% endif %}
 		<!-- this block is only filled in if we go to the signup page --> 
 		

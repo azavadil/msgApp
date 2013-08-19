@@ -68,11 +68,15 @@ body {
 .clear { 
 	clear: both;
 }
+
+.my-jumbotron { 
+	background-color:#f5f5f5; 
+}
 	
 /* Formatting for the base template */
 #base-container { 
 	position: relative; 
-}0
+}
 
 
 /* Formatting for an error logging in */ 

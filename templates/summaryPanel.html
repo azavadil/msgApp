@@ -15,11 +15,7 @@
 	</div>
 	
 	<div class = "sidebar"> 
-		<a class="gray-link" href="/">Sent ( {{numSentMsgs}} )</a>
-	</div>
-	
-	<div class = "sidebar"> 
-		<a class="gray-link" href="/">Sent ( {{numSentMsgs}} )</a>
+		<a class="gray-link" href="/sent">Sent ( {{numSentMsgs}} )</a>
 	</div>
 
 	<div class = "sidebar"> 
@@ -32,7 +28,7 @@
 
 {% block content %}
 	<div class="row")>
-  		<div class="col-lg-11"> 
+  		<div class="col-lg-10"> 
   
   			<div class="panel">
   	 			<div class="panel-heading">
@@ -53,15 +49,15 @@
 						{% for msg in msgs %}
 							<tr>
 								<td>
-									<a class = "{{msg.hasBeenRead}}" href="/{{msg.key().id()}}">{{msg.author}}</a>
+									<a class = "{{ '' if user.key().id() in msg.hasNotBeenRead else 'gray-link'}}" href="/{{msg.key().id()}}">{{msg.author}}</a>
 								</td>
 				
 								<td>
-									<a class = "{{msg.hasBeenRead}}" href="/{{msg.key().id()}}">{{msg.subject}}</a>
+									<a class = "{{ '' if user.key().id() in msg.hasNotBeenRead else 'gray-link'}}" href="/{{msg.key().id()}}">{{msg.subject}}</a>
 								</td>
 				
 								<td>
-									<a class = "{{msg.hasBeenRead}}" href="/{{msg.key().id()}}">{{ msg.created.strftime("%b %d, %Y") }}</a>
+									<a class = "{{ '' if user.key().id() in msg.hasNotBeenRead else 'gray-link'}}" href="/{{msg.key().id()}}">{{ msg.created.strftime("%b %d, %Y") }}</a>
 								</td>
 							</tr>
 						{% endfor %}
