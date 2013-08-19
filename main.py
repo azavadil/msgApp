@@ -271,13 +271,19 @@ def cache_group(groupname, update = False):
 		memcache.set(groupname, group_result)
 	return group_result
 
-########## REQUEST HANDLERS ##########
-	
-##  baseHandler is the main request handler that
-##  other handlers inherit from. We put the convience  
-##  methods in baseHandler
+##
+# Implementation note: Request Handlers
+# -------------------------------------
+# baseHandler is the main request handler that other handlers inherit from. We put the convience  
+# methods in baseHandler
+## 
 		
-########## GENERAL PURPOSE HANDLER ##########							
+##
+# Class: BaseHandler 
+# ------------------
+# 
+## 
+							
 class BaseHandler(webapp2.RequestHandler):
     def write(self, *a, **kw):
 		self.response.out.write(*a, **kw)
@@ -476,7 +482,7 @@ class ComposeMessage(BaseHandler):
 			self.render("composeMsg.html",recipient = recipient, subject = msg_subject, body = msg_body, error=error)
 
 
-########## COMPOSE MESSAGE ##########				
+########## VIEW MESSAGE ##########				
 class ViewMessage(BaseHandler):
 	def get(self,path):
 		if not self.user:
@@ -499,7 +505,7 @@ class ViewMessage(BaseHandler):
 		
 		## check that the user that's logged in is actually a reipient of this message
 		## if not, fail silently. Don't give the user an more information 
-		if self.user.key().id() not in msg.recipientIDs: 
+		if self.user.key().id() not in msg.recipientIDs and self.user.key().id() != msg.authorID: 
 			self.error(400)
 			return 
 		
@@ -510,15 +516,31 @@ class ViewMessage(BaseHandler):
 		self.render("viewMsg.html", message_HTML = markdown.markdown(msg.body), numMsgs = self.inbox.count(), numSentMsgs = self.outbox.count())
 	
 	def post(self,path): 
-		msg = Message.db_by_id(int(path[1:]))
-		logging.error("ViewMsg = %d"%len(msg.recipientIDs))
-		if len(msg.recipientIDs) == 1: 
-			msg.delete()
-		else: 
-			msg.recipientIDs.remove(self.user.key().id())
-			msg.put()
-		self.redirect("/") 
 		
+		selectedAction = self.request.get("selectedAction")
+		
+		logging.error("View message = %s"%selectedAction)
+	
+		msg = Message.db_by_id(int(path[1:]))
+		if selectedAction == "delete": 
+	
+			logging.error("ViewMsg = %d"%len(msg.recipientIDs))
+			if len(msg.recipientIDs) == 1: 
+				msg.delete()
+			else: 
+				msg.recipientIDs.remove(self.user.key().id())
+				msg.put()
+			self.redirect("/") 
+		
+		if selectedAction == "reply":
+			self.redirect("/newMsg")
+			self.render("composeMsg.html",\
+						recipient = msg.author,\
+						subject = "re: " + msg.subject,\
+						body = msg.body,\
+						numMsgs = self.inbox.count(),\
+						numSentMsgs = self.inbox.count())
+					
 ########## GROUPS ##########				
 class ViewGroup(BaseHandler):
 	def get(self):

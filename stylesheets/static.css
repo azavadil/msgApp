@@ -44,10 +44,6 @@ body {
 	margin-right: 20px;
 }
 
-.read-style{ 
-	color: lightgray; 
-}
-
 .gray-link {
 	color: gray;
 	text-decoration: none;
@@ -73,11 +69,6 @@ body {
 	background-color:#f5f5f5; 
 }
 	
-/* Formatting for the base template */
-#base-container { 
-	position: relative; 
-}
-
 
 /* Formatting for an error logging in */ 
 .fallbackBrowserError {
@@ -110,116 +101,6 @@ body {
 	min-height: 50%; 
 }
 	
-.main-title {
-    display: block;
-    color: #222;
-    font-size: 40px;
-    font-weight: bold;
-    text-align: center;
-	margin: 2% auto 2% auto; 
-    text-decoration: none;
-}
 
 
-.main-edit {
-	position: absolute;
-	top: 200px;
-	right: 0;
-	bottom: 10px;
-	left: 0;
-}
 
-.main-edit textarea {
-	width:95%;
-	min-height:200px; 
-	top: 6%;
-	bottom: 3%;
-	left: 0; 
-	right: 0;
-	font-size: 14px;
-}
-
-.form-footer {
-	position: absolute;
-	bottom: 0;
-	left: 0;
-	right: 0;
-	height: 30px;
-}
-	
-.main-edit button {
-	font-size: 18px;
-}
-
-
-.post + .post {
-    margin-top: 15px;
-}
-
-.post-heading {
-    position: relative;
-    border-bottom: 3px solid #666;
-}
-
-.post-title {
-    font-size: 24px;
-    font-weight: bold;
-}
-
-.post-date {
-    position: absolute;
-    right: 0px;
-    bottom: 0px;
-    color: #999;
-}
-
-.post-content {
-    margin-top: 5px;
-
-}
-
-
-.summary-table {
-	border-collapse: collapse;
-	overflow: hidden; 
-	white-space: nowrap; 
-}
-
-.summary-table .not-read-style{ 
-	color: coral; 
-}
-
-.summary-table .gray {
-	background-color: #eee;
-}
-
-.history-table .date-cell {
-	padding: 10px;
-	width:200px; 
-}
-
-.history-table .content-cell {
-	padding: 10px;
-	width: 200px;
-}
-
-.history-table .link-cell {
-	padding: 0 5px;
-}
-
-#edit-editblock {
-	position: relative;
-	top: 20%;
-	right: 5%;
-	left: 5%; 
-	bottom: 5%;
-}
-
-.edit-h2 {
-	position: absolute;
-	top: 170px; 
-	left: 0px;
-	right: 0px; 
-	margin-top:0; 
-	clear:both;
-}
