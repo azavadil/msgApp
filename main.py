@@ -285,30 +285,22 @@ class UserGroup(db.Model):
 
 ########## CACHING FUNCTIONS ##########		
 		
-##  cache_allpost is applied when we cache multiple posts
+##  cache_user is used for our user tracking system
 ##  (e.g. when the front page is generated or we generate
 ##   a user page) 
 
 	
-# def cache_allpost(front_val = "", update = False):
-	# """ (str, bool) -> str 
-		# param front_val: string that's used set construct database keys
-        # param update: specifies whether the cache should be overwritten
-	# """
+def cache_user(userID, update = False):
+	""" (str, bool) -> str 
+		param front_val: string that's used set construct database keys
+        param update: specifies whether the cache should be overwritten
+	"""
 
-	# key = 'top'+front_val
-	# if front_val == "":
-		# db_frnt_property = True
-	# else: 
-		# db_frnt_property = False
-		# ##keys have to be strings
-		# logging.error("cache allpost %s" %key)
-	# frontpage_res = memcache.get(key)
-	# if frontpage_res is None or update:
-		# logging.error("cache_allpost - DB QUERY")
-		# frontpage_res = insiderContent.all().filter("front_page =", db_frnt_property).order("-created").fetch(8)	
-		# memcache.set(key, frontpage_res)
-	# return frontpage_res
+	user_result = memcache.get(key)
+	if user_result is None or update:
+		user_result = user_DB.db_by_id(int(userID))	
+		memcache.set(key, user_result)
+	return user_result
 
 
 ##  cache_singlepost is applied to cache a single post
