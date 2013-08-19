@@ -224,8 +224,6 @@ class UserGroup(db.Model):
     groupIDs = db.ListProperty(long, required = True)
     groupAuthor = db.IntegerProperty(required = True, indexed = False)
     	
-   
-
 
 ########## CACHING FUNCTIONS ##########		
 		
@@ -254,23 +252,23 @@ def cache_user_group(userID, update = False):
 	logging.error("cache_user_group called")
 	
 	user_group_key = "group_" + str(userID)
-	group_result = memcache.get(user_group_key)
-	if group_result is None or update: 
-		group_result = UserGroup.all().filter("groupIDs =",userID).fetch(10)
-		logging.error("cache_user_group, update %s, %s"%(user_group_key, group_result))
-		memcache.set(user_group_key, group_result)
-	return group_result
+	list_of_users_groups = memcache.get(user_group_key)
+	if list_of_users_groups is None or update: 
+		list_of_users_groups = UserGroup.all().ancestor(group_DB_rootkey()).filter("groupIDs =",userID).fetch(10)
+		logging.error("cache_user_group, update %s, %s"%(user_group_key, list_of_users_groups))
+		memcache.set(user_group_key, list_of_users_groups)
+	return list_of_users_groups
 		
-def cache_group(group_name, update = False): 
+def cache_group(groupname, update = False): 
 	""" (str, bool) -> Group entities
 		param group_name: string that's used as database key
         param update: specifies whether the cache should be overwritten
 	"""
 	
-	group_result = memcache.get(group_name)
+	group_result = memcache.get(groupname)
 	if group_result is None or update: 
-		group_result = UserGroup.all().filter("groupname =",group_name.lower()).get()
-		memcache.set(group_name, group_result)
+		group_result = UserGroup.all().filter("groupname =",groupname.lower()).get()
+		memcache.set(groupname, group_result)
 	return group_result
 
 ########## REQUEST HANDLERS ##########
@@ -335,8 +333,8 @@ class BaseHandler(webapp2.RequestHandler):
 		uid = self.read_secure_cookie('user_id')				## return string value of user ID
 		self.user = uid and cache_user(uid)
 		if self.user:
-			self.inbox = Message.all().filter("recipientIDs =", self.user.key().id()).order("-created")
-			self.outbox = Message.all().filter("authorID =", self.user.key().id())
+			self.inbox = Message.all().ancestor(message_DB_rootkey()).filter("recipientIDs =", self.user.key().id()).order("-created")
+			self.outbox = Message.all().ancestor(message_DB_rootkey()).filter("authorID =", self.user.key().id())
 			
     def notfound(self):
 		self.error(404)
@@ -470,9 +468,18 @@ class ViewMessage(BaseHandler):
 			self.error(400)
 			return
 		
-		## we're using the key as a url. The app extracts the URL (which is actually a key) 
-		## and uses the key to retrieve the message from the database. 
-		## use path[1:] to strip off the leading "/"
+		## 
+		# Implementation note: 
+		# --------------------
+		# we're using the key as a url. The app extracts the URL (which is actually a key) 
+		# and uses the key to retrieve the message from the database. 
+		# use path[1:] to strip off the leading "/"
+		#
+		# Originally there was no parent key and the key == id. That allowed 
+		# code Message.get(db.Key(path[1:])) where the function db.Key() converted 
+		# a string to a key. When there is a parent component to the path the 
+		# key != ID so 
+		##
 		msg = Message.db_by_id(int(path[1:]))
 		
 		## check that the user that's logged in is actually a reipient of this message
@@ -487,7 +494,7 @@ class ViewMessage(BaseHandler):
 		self.render("viewMsg.html", message_HTML = markdown.markdown(msg.body), numMsgs = self.inbox.count(), numSentMsgs = self.outbox.count())
 	
 	def post(self,path): 
-		msg = Message.get(db.Key(path[1:]))
+		msg = Message.db_by_id(int(path[1:]))
 		logging.error("ViewMsg = %d"%len(msg.recipientIDs))
 		if len(msg.recipientIDs) == 1: 
 			msg.delete()
@@ -558,6 +565,7 @@ class ViewGroup(BaseHandler):
 				error_msg = "That group doesn't exist" 
 				self.render("viewGroup.html", user_input_groupname = input_groupname, groups = groupsUserBelongsTo, error = error_msg)
 			else: 
+				qry = UserGroup.all().filter("groupname =", input_groupname).get()
 				qry.groupIDs.remove(self.user.key().id())
 				qry.put()
 				cache_user_group(self.user.key().id(), update=True)
