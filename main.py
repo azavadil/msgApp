@@ -194,7 +194,6 @@ class Message(db.Model):
 	recipientIDs = db.ListProperty(long, required = True)
 	subject = db.StringProperty(required = False)
 	body = db.TextProperty(required = False)
-	msgURL = db.StringProperty(required = False, indexed = False)
 	hasBeenRead = db.StringProperty(required = True, indexed = False)
 	##auto_now_add sets created to be the current time
 	created = db.DateTimeProperty(auto_now_add = True)
@@ -417,8 +416,6 @@ class ComposeMessage(BaseHandler):
 							body = msg_body,\
 							hasBeenRead = "not-read-style")
 			to_store.put()
-			to_store.msgURL = "/" + str(to_store.key().id())
-			to_store.put()
 			self.redirect("/")
 			
 			
@@ -434,18 +431,6 @@ class ComposeMessage(BaseHandler):
 							body = msg_body,\
 							hasBeenRead = "not-read-style")
 		
-			
-			##
-			# Implementation note: 
-			# --------------------
-			# The entity key is also used as the URL. The numerical ID that is assigned by the system
-			# is need to complete the key. The entity is stored completing the key, then the entity 
-			# is updated with the key value 
-			##
-			
-			to_store.put()
-			##[NTD: replace with allocateID] 
-			to_store.msgURL = "/" + str(to_store.key().id())
 			to_store.put()
 			self.redirect("/")
 	
@@ -467,8 +452,6 @@ class ComposeMessage(BaseHandler):
 		
 			
 			##store the new blog object
-			to_store.put()
-			to_store.msgURL = "/" + str(to_store.key().id())
 			to_store.put()
 			self.redirect("/")
 			
