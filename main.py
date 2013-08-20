@@ -231,12 +231,13 @@ def group_DB_rootkey(group = 'default'):
 
 	
 class UserGroup(db.Model):
-    groupname = db.StringProperty(required = True)
-    groupKeys = db.ListProperty(db.Key, required = True)
-    groupAuthor = db.ReferenceProperty(required = True, indexed = False)
+	groupname = db.StringProperty(required = True)
+	groupKeys = db.ListProperty(db.Key, required = True)
+	groupAuthor = db.ReferenceProperty(required = True, indexed = False)
     	
-
-
+	@classmethod
+	def db_by_name(cls, groupname): 
+		return UserGroup.all().ancestor(group_DB_rootkey()).filter("groupname = ", groupname).get()
 
 def usermsg_DB_rootkey(group = 'default'):
 	""" 
@@ -285,17 +286,19 @@ def cache_user(userID, update = False):
 		memcache.set(userID, user_result)
 	return user_result
 
-def cache_user_group(userID, update = False): 
+def cache_user_group(user, update = False): 
 	""" (int, bool) -> Group entities
 		param userID: string that's used as database key
         param update: specifies whether the cache should be overwritten
 	"""
+	# REFACTOR DELETE CTRLF LOGGING
 	logging.error("cache_user_group called")
 	
-	user_group_key = "group_" + str(userID)
+	user_group_key = "group_" + str(user.key().id())
 	list_of_users_groups = memcache.get(user_group_key)
 	if list_of_users_groups is None or update: 
-		list_of_users_groups = UserGroup.all().ancestor(group_DB_rootkey()).filter("groupIDs =",userID).fetch(10)
+		list_of_users_groups = UserGroup.all().ancestor(group_DB_rootkey()).filter("groupKeys =",user.key()).fetch(10)
+		# REFACTOR DELETE
 		logging.error("cache_user_group, update %s, %s"%(user_group_key, list_of_users_groups))
 		memcache.set(user_group_key, list_of_users_groups)
 	return list_of_users_groups
@@ -466,9 +469,9 @@ class ComposeMessage(BaseHandler):
 			self.error(400)
 			return
 		
-		
-		
+		## REFACTOR
 		if self.request.arguments != []: 
+			logging.error("ComposeMessage = %s, %s"%(self.request.arguments, self.request.get('msgAuthor')))
 			self.render("composeMsg.html",\
 				numMsgs = len(self.inbox),\
 				numSentMsgs = len(self.outbox),\
@@ -487,13 +490,13 @@ class ComposeMessage(BaseHandler):
 		
 		##retreive the field named "subject" and the field named "content"
 		##from the form submission
-		recipient = self.request.get("recipient")
+		msg_recipient = self.request.get("recipient")
 		msg_subject = self.request.get("subject")
 		msg_body = self.request.get("body")
 		
 		
 		## check if the message is a global broadcast
-		if recipient.lower() == "all": 
+		if msg_recipient.lower() == "all": 
 			## check
 			recipients = db.Query(user_DB)
 			recipientKeys = db.Query(user_DB, keys_only=True)
@@ -507,19 +510,19 @@ class ComposeMessage(BaseHandler):
 			to_store.put()
 			
 			for recipient in recipients: 
-				msg_file = recipient.msg_file
-				msg_file.messageKeys.append(to_store.key())
-				msg_file.unreadKeys.append(to_store.key())
-				msg_file.put()
+				curr_file = recipient.msg_file
+				curr_file.messageKeys.append(to_store.key())
+				curr_file.unreadKeys.append(to_store.key())
+				curr_file.put()
 
-			user_msg_file = self.user.msg_file
-			user_msg_file.sentKeys.append(to_store.key())
-			user_msg_file.put()
+			# add the message to the user's sent message list
+			self.user.msg_file.sentKeys.append(to_store.key())
+			self.user.msg_file.put()
 			
 			self.redirect("/")
 			
 			
-		group_qry = UserGroup.all().filter("groupname =", recipient).get()	
+		group_qry = UserGroup.all().filter("groupname =", msg_recipient).get()	
 		if group_qry: 
 			##create a new Message entity
 	
@@ -538,15 +541,14 @@ class ComposeMessage(BaseHandler):
 				msg_file.unreadKeys.append(to_store.key())
 				msg_file.put()
 
-			user_msg_file = self.user.msg_file
-			user_msg_file.sentKeys.append(to_store.key())
-			user_msg_file.put()
+			self.user.msg_file.sentKeys.append(to_store.key())
+			self.user.msg_file.put()
 			
 			self.redirect("/")
 	
 		
 		##Query the database for the recipient
-		recipientEntity = user_DB.db_by_name(recipient) 
+		recipientEntity = user_DB.db_by_name(msg_recipient) 
 		
 		
 		if recipientEntity:
@@ -570,10 +572,8 @@ class ComposeMessage(BaseHandler):
 			msg_file.put()
 			
 			# add the message to the user's sent message list
-			# REFACTOR INTO CLASS METHOD
-			user_msg_file = self.user.msg_file
-			user_msg_file.sentKeys.append(to_store.key())
-			user_msg_file.put()
+			self.user.msg_file.sentKeys.append(to_store.key())
+			self.user.msg_file.put()
 			
 			self.redirect("/")
 			
@@ -621,9 +621,9 @@ class ViewMessage(BaseHandler):
 		# [REFACTOR - add recipientKeys back to the message. 
 		# validate that user.key() is in recipientKey]
 		##
-		# if self.user.key() not in self.user.msg_file.message and self.user.key().id() != msg.authorID: 
-			# self.error(400)
-			# return 
+		if self.user.key() not in msg.recipientKeys and self.user.key().id() != msg.authorID: 
+			self.error(400)
+			return 
 		
 		if msg.key() in self.user.msg_file.unreadKeys: 
 			self.user.msg_file.unreadKeys.remove(msg.key()) 
@@ -673,7 +673,8 @@ class ViewMessage(BaseHandler):
 			self.user.msg_file.messageKeys.remove(msg.key())
 			if msg.key() in self.user.msg_file.unreadKeys: 
 				self.user.msg_file.unreadKeys.remove(msg.key()) 
-			msg.put()
+			self.user.msg_file.put()
+			
 			self.redirect("/") 
 		
 		
@@ -705,7 +706,7 @@ class ViewGroup(BaseHandler):
 	
 	def post(self): 
 		
-		groupsUserBelongsTo = cache_user_group(self.user.key().id());
+		groupsUserBelongsTo = cache_user_group(self.user);
 		input_groupname = self.request.get("groupname"); 
 		selected_action = self.request.get("selectedAction"); 		
 		
@@ -721,8 +722,8 @@ class ViewGroup(BaseHandler):
 			
 		if selected_action == "makeGroup": 
 			qry = cache_group(input_groupname) 
-			
-			if qry: 
+			user = user_DB.db_by_name(self.input_username)
+			if qry or user: 
 				error_msg = "That group already exists" 
 				self.render("viewGroup.html",\
 							user_input_groupname = input_groupname,\
@@ -735,7 +736,7 @@ class ViewGroup(BaseHandler):
 									groupAuthor = self.user.key())
 				to_store.put()
 				cache_group(input_groupname, update=True)
-				cache_user_group(self.user.key().id(), update=True)
+				cache_user_group(self.user, update=True)
 				self.redirect("/group")
 		
 		if selected_action == "joinGroup": 
@@ -749,7 +750,7 @@ class ViewGroup(BaseHandler):
 			else: 
 				qry.groupKeys.append(self.user.key())
 				qry.put()
-				cache_user_group(self.user.key().id(), update=True)
+				cache_user_group(self.user, update=True)
 				self.redirect("/group")
 		
 		if selected_action == "leaveGroup": 
@@ -770,7 +771,7 @@ class ViewGroup(BaseHandler):
 				else:
 					qry.groupKeys.remove(self.user.key())
 					qry.put()
-					cache_user_group(self.user.key().id(), update=True)
+					cache_user_group(self.user, update=True)
 					self.redirect("/group")
 		
 		if selected_action == "deleteGroup": 
@@ -791,9 +792,9 @@ class ViewGroup(BaseHandler):
 				## we have a problem here in that we need to update the cache for all members of the group
 				qry.delete()
 				##[REFACTOR. this needs to be tested]  
-				for user in qry.groupKeys: 
-					userEntity = user_DB.get(user)
-					cache_user_group(userEntity.key().id(), update=True)
+				for userKey in qry.groupKeys: 
+					userEntity = user_DB.get(userKey)
+					cache_user_group(userEntity, update=True)
 				self.redirect("/group")
 				
 		
@@ -861,8 +862,10 @@ class Register(SignupPage):
     def done(self):
     ##make sure the user doesn't already exist
     ##username in self.username is a field in the signup page. 
+	## REFACTOR GROUP NAME / NAME COLLISIONS
 		user = user_DB.db_by_name(self.input_username)
-		if user:
+		groupname = UserGroup.db_by_name(self.input_username)
+		if user or groupname:
 			msg = 'That user already exists.'
 			self.render('signupPage.html', fallback_error = msg, isSignupPage = True)
 		else:
