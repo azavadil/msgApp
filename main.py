@@ -19,8 +19,8 @@ import markdown
 
 from google.appengine.ext import db
 from google.appengine.api import memcache
-
-
+import urlparse
+from collections import OrderedDict
 
 
 template_dir = os.path.join(os.path.dirname(__file__), 'templates')
@@ -399,16 +399,34 @@ class SentPage(BaseHandler):
 					
 
 	
-########## COMPOSE MESSAGE ##########				
+##
+# Class: ComposeMessage
+# ---------------------
+# 
+# 
+##
+				
 class ComposeMessage(BaseHandler):
-	def get(self):
+	def get(self, path):
 		if not self.user:
 			self.error(400)
 			return
 		
-		self.render("composeMsg.html", numMsgs = self.inbox.count(), numSentMsgs = self.outbox.count())
 		
-	def post(self):
+		
+		if self.request.arguments != []: 
+			self.render("composeMsg.html",\
+				numMsgs = self.inbox.count(),\
+				numSentMsgs = self.outbox.count(),\
+				recipient = self.request.get('msgAuthor'),\
+				subject = self.request.get('msgSubject'))
+		else: 
+			
+			self.render("composeMsg.html",\
+				numMsgs = self.inbox.count(),\
+				numSentMsgs = self.outbox.count())
+		
+	def post(self,path):
 		if not self.user:
 			self.error(400)
 			return
@@ -484,7 +502,7 @@ class ComposeMessage(BaseHandler):
 
 ########## VIEW MESSAGE ##########				
 class ViewMessage(BaseHandler):
-	def get(self,path):
+	def get(self, path):
 		if not self.user:
 			self.error(400)
 			return
@@ -503,8 +521,12 @@ class ViewMessage(BaseHandler):
 		##
 		msg = Message.db_by_id(int(path[1:]))
 		
-		## check that the user that's logged in is actually a reipient of this message
-		## if not, fail silently. Don't give the user an more information 
+		## 
+		# Impmlementation note: 
+		# ---------------------
+		# Validate that the user that's logged in is either the reipient or the author of the message
+		# If not, fail silently. Don't give the user an more information
+		##
 		if self.user.key().id() not in msg.recipientIDs and self.user.key().id() != msg.authorID: 
 			self.error(400)
 			return 
@@ -513,15 +535,42 @@ class ViewMessage(BaseHandler):
 			msg.hasNotBeenRead.remove(self.user.key().id()) 
 			msg.put() 
 		
-		self.render("viewMsg.html", message_HTML = markdown.markdown(msg.body), numMsgs = self.inbox.count(), numSentMsgs = self.outbox.count())
+		self.render("viewMsg.html",\
+					message_HTML = markdown.markdown(msg.body),\
+					message = msg,\
+					numMsgs = self.inbox.count(),\
+					numSentMsgs = self.outbox.count())
 	
-	def post(self,path): 
+	
+	
+	##
+	# Implementation note: 
+	# -------------------
+	# The app posts to the ViewMessage handlers when either the 'Reply' or 'Delete' button
+	# is clicked. When the 'Reply' button is clicked, we extract the values for the message
+	# author and subject, build a query string, and redirect to /newMsg with the query string
+	# allowing the app to fill in the recipient and subject of the new message 
+	#
+	# When the 'Delete' button is clicked, we verify that we are the last recipient and 
+	# delete the message
+	# [NTD: REFACTOR]
+	##
+	
+	def post(self, path): 
 		
 		selectedAction = self.request.get("selectedAction")
+		msgAuthor = self.request.get("msgAuthor")
+		msgSubject = self.request.get("msgSubject")
 		
-		logging.error("View message = %s"%selectedAction)
 	
 		msg = Message.db_by_id(int(path[1:]))
+		
+		if selectedAction == "reply":
+		
+			qsParams = OrderedDict([("msgAuthor",msgAuthor),("msgSubject", msgSubject)])
+			
+			self.redirect("/newMsg?" + urllib.urlencode(qsParams))
+		
 		if selectedAction == "delete": 
 	
 			logging.error("ViewMsg = %d"%len(msg.recipientIDs))
@@ -532,14 +581,8 @@ class ViewMessage(BaseHandler):
 				msg.put()
 			self.redirect("/") 
 		
-		if selectedAction == "reply":
-			self.redirect("/newMsg")
-			self.render("composeMsg.html",\
-						recipient = msg.author,\
-						subject = "re: " + msg.subject,\
-						body = msg.body,\
-						numMsgs = self.inbox.count(),\
-						numSentMsgs = self.inbox.count())
+		
+			
 					
 ########## GROUPS ##########				
 class ViewGroup(BaseHandler):
@@ -720,13 +763,15 @@ class LogoutPage(BaseHandler):
 ##anything that is in paratheses gets passed in to the handler
 ##the regular expression matches ()		
 
-PAGE_RE = r'(/(?:[a-zA-Z0-9_-]+)*)'
+MSGKEY_RE = r'(/(?:[a-zA-Z0-9_-]+)*)'
+
+NEWMSG_RE = r'/newMsg(.*)'
 
 app = webapp2.WSGIApplication([('/', MainPage),
-								('/newMsg', ComposeMessage),
+								( NEWMSG_RE, ComposeMessage),
 								('/group', ViewGroup), 
 								('/signup', Register),
 								('/sent', SentPage), 
 								('/logout',LogoutPage),
-								( PAGE_RE, ViewMessage),
+								( MSGKEY_RE, ViewMessage),
 								],debug = True)
