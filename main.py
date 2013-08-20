@@ -138,44 +138,49 @@ def users_DB_rootkey(group = 'default'):
     
 
 class user_DB(db.Model):
-    ##required = True, will raise an exception if we try to create 
-    ##content without a title
-    user_name = db.StringProperty(required = True)
-    pw_hash = db.StringProperty(required = True)
-    ##auto_now_add sets created to be the current time
-    created = db.DateTimeProperty(auto_now_add = True)
-    last_modified = db.DateTimeProperty(auto_now = True)
+	##required = True, will raise an exception if we try to create 
+	##content without a title
+	user_name = db.StringProperty(required = True)
+	pw_hash = db.StringProperty(required = True)
+	msg_file = db.ReferenceProperty(required = True)
+	##auto_now_add sets created to be the current time
+	created = db.DateTimeProperty(auto_now_add = True)
+	last_modified = db.DateTimeProperty(auto_now = True)
 	
-    @classmethod
-    def db_by_id(cls, uid):
-    	return user_DB.get_by_id(uid,users_DB_rootkey())
+	@classmethod
+	def db_by_id(cls, uid):
+		return user_DB.get_by_id(uid,users_DB_rootkey())
 
-    @classmethod
-    def db_by_name(cls, name):
-    	u = user_DB.all().filter('user_name =', name).get()
-    	return u
+	@classmethod
+	def db_by_name(cls, name):
+		u = user_DB.all().filter('user_name =', name).get()
+		return u
 		
-		
-    @classmethod   
-    def register(cls, name, pw, email = None):
-		
+	@classmethod   
+	def register(cls, name, pw, msg_file_key):
 		current_pw_hash = make_pw_hash(name, pw)
 		
 		return user_DB(parent = users_DB_rootkey(),\
             				user_name = name,\
-							pw_hash = current_pw_hash)
+							pw_hash = current_pw_hash,\
+							msg_file = msg_file_key)
 
-    @classmethod
-    def db_login(cls, name, pw):
-		u = cls.db_by_name(name)
+	@classmethod
+	def db_login(cls, name, pw):
+		u = cls.db_by_name(name)	
 		if u and valid_pw(name, pw, u.pw_hash):
 			return u, ''
 		elif u:
 			return u, "Username and password don't match"
-		else:
+		else:	
 			return None, "Invalid login"
 
-########## MESSAGE DATABASE ##########
+##
+# Implementation note: 
+# --------------------
+# class: Message
+# 
+##
 	
 def message_DB_rootkey(group = 'default'):
 	""" 
@@ -191,10 +196,9 @@ class Message(db.Model):
     ##content without a title
 	author = db.StringProperty(required = True)
 	authorID = db.IntegerProperty(required = True)
-	recipientIDs = db.ListProperty(long, required = True)
 	subject = db.StringProperty(required = False)
 	body = db.TextProperty(required = False)
-	hasNotBeenRead = db.ListProperty(int, required = True, indexed = False)
+	hasBeenRead = db.StringProperty(required = False)
 	##auto_now_add sets created to be the current time
 	created = db.DateTimeProperty(auto_now_add = True)
 	
@@ -221,10 +225,40 @@ def group_DB_rootkey(group = 'default'):
 	
 class UserGroup(db.Model):
     groupname = db.StringProperty(required = True)
-    groupIDs = db.ListProperty(long, required = True)
+    groupKeys = db.ListProperty(db.Key, required = True)
     groupAuthor = db.IntegerProperty(required = True, indexed = False)
     	
 
+
+
+def usermsg_DB_rootkey(group = 'default'):
+	""" 
+		group_DB_rootkey takes a string and returns a key. 
+		The returned key is used as the parent key for the entire 
+		Message class. For this class a parent key isn't strictly 
+		necessary except to ensure consistency. 
+	"""
+	return db.Key.from_path('MsgFile', group)
+		
+##
+# Class: UserMsg
+# -------
+#
+#
+##
+
+class MsgFile(db.Model):
+	messageKeys = db.ListProperty(db.Key, required = True, indexed = False)
+	unreadKeys = db.ListProperty(db.Key, required = True, indexed = False)
+	sentKeys = db.ListProperty(db.Key, required = True, indexed = False)
+	
+	@classmethod
+	def register(cls): 
+		msgFile = MsgFile(parent = usermsg_DB_rootkey())
+		msgFile.put()
+		return msgFile
+		
+	
 ########## CACHING FUNCTIONS ##########		
 		
 ##  cache_user is used for our user tracking system
@@ -339,8 +373,9 @@ class BaseHandler(webapp2.RequestHandler):
 		uid = self.read_secure_cookie('user_id')				## return string value of user ID
 		self.user = uid and cache_user(uid)
 		if self.user:
-			self.inbox = Message.all().ancestor(message_DB_rootkey()).filter("recipientIDs =", self.user.key().id()).order("-created")
-			self.outbox = Message.all().ancestor(message_DB_rootkey()).filter("authorID =", self.user.key().id())
+			userMsgFile = self.user.msg_file
+			self.inbox = sorted(db.get(userMsgFile.messageKeys), key=lambda x:x.created, reverse=True)
+			self.outbox = sorted(db.get(userMsgFile.sentKeys), key=lambda x:x.created, reverse =True)
 			
     def notfound(self):
 		self.error(404)
@@ -354,10 +389,13 @@ class MainPage(BaseHandler):
 		if not self.user: 
 			self.render("summaryPanel.html")
 		else:
+			
+			
+			
 			self.render("summaryPanel.html",\
-						numMsgs = self.inbox.count(),\
-						numSentMsgs = self.outbox.count(),\
-						msgs = self.inbox.fetch(20),\
+						numMsgs = len(self.inbox),\
+						numSentMsgs = len(self.outbox),\
+						msgs = self.inbox[:10],\
 						user = self.user)
 			
 	
@@ -392,8 +430,8 @@ class SentPage(BaseHandler):
 			return 
 		else:
 			self.render("sentPanel.html",\
-						numMsgs = self.inbox.count(),\
-						numSentMsgs = self.outbox.count(),\
+						numMsgs = len(self.inbox),\
+						numSentMsgs = len(self.outbox),\
 						msgs = self.outbox.fetch(20),\
 						user = self.user)
 					
@@ -416,15 +454,15 @@ class ComposeMessage(BaseHandler):
 		
 		if self.request.arguments != []: 
 			self.render("composeMsg.html",\
-				numMsgs = self.inbox.count(),\
-				numSentMsgs = self.outbox.count(),\
+				numMsgs = len(self.inbox),\
+				numSentMsgs = len(self.outbox),\
 				recipient = self.request.get('msgAuthor'),\
 				subject = self.request.get('msgSubject'))
 		else: 
 			
 			self.render("composeMsg.html",\
-				numMsgs = self.inbox.count(),\
-				numSentMsgs = self.outbox.count())
+				numMsgs = len(self.inbox),\
+				numSentMsgs = len(self.outbox))
 		
 	def post(self,path):
 		if not self.user:
@@ -440,19 +478,26 @@ class ComposeMessage(BaseHandler):
 		
 		## check if the message is a global broadcast
 		if recipient.lower() == "all": 
-			recipients = db.Query(user_DB, keys_only=True)
-			
-			recipientIDs = map(lambda x: x.id(), list(recipients))
-			logging.error("composeMsg = %s, %s"%(recipientIDs,type(recipientIDs))) 
+			## check
+			recipients = db.Query(user_DB)
 			
 			to_store = Message(parent = message_DB_rootkey(),\
 							author = self.user.user_name,\
 							authorID = self.user.key().id(),\
-							recipientIDs = map(lambda x:x.id(),list(recipients)),\
 							subject = msg_subject,\
-							body = msg_body,\
-							hasNotBeenRead = map(lambda x:x.id(),list(recipients)))
+							body = msg_body)
 			to_store.put()
+			
+			for recipient in recipients: 
+				msg_file = recipient.msg_file
+				msg_file.messageKeys.append(to_store.key())
+				msg_file.unreadKeys.append(to_store.key())
+				msg_file.put()
+
+			user_msg_file = self.user.msg_file
+			user_msg_file.sentKeys.append(to_store.key())
+			user_msg_file.put()
+			
 			self.redirect("/")
 			
 			
@@ -463,12 +508,21 @@ class ComposeMessage(BaseHandler):
 			to_store = Message(parent = message_DB_rootkey(),\
 							author = self.user.user_name,\
 							authorID = self.user.key().id(),\
-							recipientIDs = group_qry.groupIDs,\
 							subject = msg_subject,\
-							body = msg_body,\
-							hasNotBeenRead = group_qry.groupIDs)
+							body = msg_body)
 		
 			to_store.put()
+			
+			for recipient in group_qry.groupKeys: 
+				msg_file = recipient.msg_file
+				msg_file.messageKeys.append(to_store.key())
+				msg_file.unreadKeys.append(to_store.key())
+				msg_file.put()
+
+			user_msg_file = self.user.msg_file
+			user_msg_file.sentKeys.append(to_store.key())
+			user_msg_file.put()
+			
 			self.redirect("/")
 	
 		
@@ -478,18 +532,28 @@ class ComposeMessage(BaseHandler):
 		
 		if recipientEntity:
 			##create a new Message entity
-	
 			to_store = Message(parent = message_DB_rootkey(),\
 							author = self.user.user_name,\
 							authorID = self.user.key().id(),\
-							recipientIDs = [recipientEntity.key().id()],\
 							subject = msg_subject,\
-							body = msg_body,\
-							hasNotBeenRead = [recipientEntity.key().id()])
-		
-			
-			##store the new blog object
+							body = msg_body)
+				
+			# store the message object
 			to_store.put()
+			
+			# retrieve the recipient's message file and add the message to their message list
+			# and unread message list
+			msg_file = UserMsg.get(recipientEntity.key());
+			msg_file.messageKeys.append(to_store.key())
+			msg_file.unreadKeys.append(to_store.key())
+			msg_file.put()
+			
+			# add the message to the user's sent message list
+			# REFACTOR INTO CLASS METHOD
+			user_msg_file = UserMsg.get(self.user.key())
+			user_msg_file.sentKeys.append(to_store.key())
+			user_msg_file.put()
+			
 			self.redirect("/")
 			
 		else: 
@@ -538,8 +602,8 @@ class ViewMessage(BaseHandler):
 		self.render("viewMsg.html",\
 					message_HTML = markdown.markdown(msg.body),\
 					message = msg,\
-					numMsgs = self.inbox.count(),\
-					numSentMsgs = self.outbox.count())
+					numMsgs = len(self.inbox),\
+					numSentMsgs = len(self.outbox))
 	
 	
 	
@@ -601,7 +665,7 @@ class ViewGroup(BaseHandler):
 		## check that the user that's logged in is actually a reipient of this message
 		## if not, fail silently. Don't give the user an more information 
 		
-		self.render("viewGroup.html", groups = groupsUserBelongsTo, numMsgs = self.inbox.count(), numSentMsgs = self.outbox.count())
+		self.render("viewGroup.html", groups = groupsUserBelongsTo, numMsgs = len(self.inbox), numSentMsgs = len(self.outbox))
 	
 	def post(self): 
 		
@@ -741,9 +805,10 @@ class Register(SignupPage):
 			msg = 'That user already exists.'
 			self.render('signupPage.html', fallback_error = msg, isSignupPage = True)
 		else:
-			email_addr = self.input_username + "@umail.com"
-			user = user_DB.register(self.input_username, self.input_password)
+			newMsgFile = MsgFile.register()
+			user = user_DB.register(self.input_username, self.input_password, newMsgFile.key())
 			user.put()
+			
 			
 			self.handler_login(user)
 			## [NTD: uncomment] cache_user(user.key().id())
