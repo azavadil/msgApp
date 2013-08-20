@@ -198,6 +198,7 @@ class Message(db.Model):
 	authorID = db.IntegerProperty(required = True)
 	subject = db.StringProperty(required = False)
 	body = db.TextProperty(required = False)
+	recipientKeys = db.ListProperty(db.Key, required = True, indexed = False) 
 	hasBeenRead = db.StringProperty(required = False)
 	##auto_now_add sets created to be the current time
 	created = db.DateTimeProperty(auto_now_add = True)
@@ -226,7 +227,7 @@ def group_DB_rootkey(group = 'default'):
 class UserGroup(db.Model):
     groupname = db.StringProperty(required = True)
     groupKeys = db.ListProperty(db.Key, required = True)
-    groupAuthor = db.IntegerProperty(required = True, indexed = False)
+    groupAuthor = db.ReferenceProperty(required = True, indexed = False)
     	
 
 
@@ -390,8 +391,6 @@ class MainPage(BaseHandler):
 			self.render("summaryPanel.html")
 		else:
 			
-			
-			
 			self.render("summaryPanel.html",\
 						numMsgs = len(self.inbox),\
 						numSentMsgs = len(self.outbox),\
@@ -432,7 +431,7 @@ class SentPage(BaseHandler):
 			self.render("sentPanel.html",\
 						numMsgs = len(self.inbox),\
 						numSentMsgs = len(self.outbox),\
-						msgs = self.outbox.fetch(20),\
+						msgs = self.outbox,\
 						user = self.user)
 					
 
@@ -457,7 +456,7 @@ class ComposeMessage(BaseHandler):
 				numMsgs = len(self.inbox),\
 				numSentMsgs = len(self.outbox),\
 				recipient = self.request.get('msgAuthor'),\
-				subject = self.request.get('msgSubject'))
+				subject = "RE: " + self.request.get('msgSubject'))
 		else: 
 			
 			self.render("composeMsg.html",\
@@ -480,12 +479,14 @@ class ComposeMessage(BaseHandler):
 		if recipient.lower() == "all": 
 			## check
 			recipients = db.Query(user_DB)
+			recipientKeys = db.Query(user_DB, keys_only=True)
 			
 			to_store = Message(parent = message_DB_rootkey(),\
 							author = self.user.user_name,\
 							authorID = self.user.key().id(),\
 							subject = msg_subject,\
-							body = msg_body)
+							body = msg_body,\
+							recipientKeys = list(recipientKeys))
 			to_store.put()
 			
 			for recipient in recipients: 
@@ -509,7 +510,8 @@ class ComposeMessage(BaseHandler):
 							author = self.user.user_name,\
 							authorID = self.user.key().id(),\
 							subject = msg_subject,\
-							body = msg_body)
+							body = msg_body,\
+							recipientKeys = group_qry.groupKeys)
 		
 			to_store.put()
 			
@@ -536,21 +538,22 @@ class ComposeMessage(BaseHandler):
 							author = self.user.user_name,\
 							authorID = self.user.key().id(),\
 							subject = msg_subject,\
-							body = msg_body)
+							body = msg_body, 
+							recipientKeys = [recipientEntity.key()])
 				
 			# store the message object
 			to_store.put()
 			
 			# retrieve the recipient's message file and add the message to their message list
 			# and unread message list
-			msg_file = UserMsg.get(recipientEntity.key());
+			msg_file = recipientEntity.msg_file
 			msg_file.messageKeys.append(to_store.key())
 			msg_file.unreadKeys.append(to_store.key())
 			msg_file.put()
 			
 			# add the message to the user's sent message list
 			# REFACTOR INTO CLASS METHOD
-			user_msg_file = UserMsg.get(self.user.key())
+			user_msg_file = self.user.msg_file
 			user_msg_file.sentKeys.append(to_store.key())
 			user_msg_file.put()
 			
@@ -590,14 +593,15 @@ class ViewMessage(BaseHandler):
 		# ---------------------
 		# Validate that the user that's logged in is either the reipient or the author of the message
 		# If not, fail silently. Don't give the user an more information
+		# [REFACTOR - add recipientKeys back to the message. validate that user.key() is in recipientKey]
 		##
-		if self.user.key().id() not in msg.recipientIDs and self.user.key().id() != msg.authorID: 
-			self.error(400)
-			return 
+		# if self.user.key() not in self.user.msg_file.message and self.user.key().id() != msg.authorID: 
+			# self.error(400)
+			# return 
 		
-		if self.user.key().id() in msg.hasNotBeenRead: 
-			msg.hasNotBeenRead.remove(self.user.key().id()) 
-			msg.put() 
+		if msg.key() in self.user.msg_file.unreadKeys: 
+			self.user.msg_file.unreadKeys.remove(msg.key()) 
+			self.user.msg_file.put() 
 		
 		self.render("viewMsg.html",\
 					message_HTML = markdown.markdown(msg.body),\
@@ -637,12 +641,10 @@ class ViewMessage(BaseHandler):
 		
 		if selectedAction == "delete": 
 	
-			logging.error("ViewMsg = %d"%len(msg.recipientIDs))
-			if len(msg.recipientIDs) == 1: 
-				msg.delete()
-			else: 
-				msg.recipientIDs.remove(self.user.key().id())
-				msg.put()
+			self.user.msg_file.messageKeys.remove(msg.key())
+			if msg.key() in self.user.msg_file.unreadKeys: 
+				self.user.msg_file.unreadKeys.remove(msg.key()) 
+			msg.put()
 			self.redirect("/") 
 		
 		
@@ -688,7 +690,7 @@ class ViewGroup(BaseHandler):
 				self.render("viewGroup.html", user_input_groupname = input_groupname, groups = groupsUserBelongsTo, error = error_msg)
 			else:
 				to_store = UserGroup(parent = group_DB_rootkey(), groupname = input_groupname.lower(),\
-							groupIDs = [self.user.key().id()], groupAuthor = self.user.key().id())
+							groupKeys = [self.user.key()], groupAuthor = self.user.key())
 				to_store.put()
 				cache_group(input_groupname, update=True)
 				cache_user_group(self.user.key().id(), update=True)
@@ -700,7 +702,7 @@ class ViewGroup(BaseHandler):
 				error_msg = "That group doesn't exist" 
 				self.render("viewGroup.html", user_input_groupname = input_groupname, groups = groupsUserBelongsTo, error = error_msg)
 			else: 
-				qry.groupIDs.append(self.user.key().id())
+				qry.groupKeys.append(self.user.key())
 				qry.put()
 				cache_user_group(self.user.key().id(), update=True)
 				self.redirect("/group")
@@ -711,11 +713,11 @@ class ViewGroup(BaseHandler):
 				error_msg = "That group doesn't exist" 
 				self.render("viewGroup.html", user_input_groupname = input_groupname, groups = groupsUserBelongsTo, error = error_msg)
 			else: 
-				if self.user.key().id() not in qry.groupIDs: 
+				if self.user.key() not in qry.groupKeys: 
 					error_msg = "You don't belong to that group" 
 					self.render("viewGroup.html", user_input_groupname = input_groupname, groups = groupsUserBelongsTo, error = error_msg)
 				else:
-					qry.groupIDs.remove(self.user.key().id())
+					qry.groupKeys.remove(self.user.key())
 					qry.put()
 					cache_user_group(self.user.key().id(), update=True)
 					self.redirect("/group")
@@ -725,14 +727,16 @@ class ViewGroup(BaseHandler):
 			if not qry: 
 				error_msg = "That group doesn't exist" 
 				self.render("viewGroup.html", user_input_groupname = input_groupname, groups = groupsUserBelongsTo, error = error_msg)
-			elif qry.groupAuthor != self.user.key().id(): 
+			elif qry.groupAuthor != self.user.key(): 
 				error_msg = "Only group author can delete group"
 				self.render("viewGroup.html", user_input_groupname = input_groupname, groups = groupsUserBelongsTo, error = error_msg)
 			else: 
 				## we have a problem here in that we need to update the cache for all members of the group
 				qry.delete()
-				for user in qry.groupIDs: 
-					cache_user_group(user, update=True)
+				##[REFACTOR. this needs to be tested]  
+				for user in qry.groupKeys: 
+					userEntity = user_DB.get(user)
+					cache_user_group(userEntity.key().id(), update=True)
 				self.redirect("/group")
 				
 		
