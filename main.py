@@ -91,9 +91,12 @@ def valid_password(user_password):
 		require 1 uppercase, 1 lowercase, 1 digit, length of at least 6
 		
 		^                  		the start of the string
-		(?=.*[a-z])        		use positive look ahead to see if at least one lower case letter exists
-		(?=.*[A-Z])        		use positive look ahead to see if at least one upper case letter exists
-		(?=.*\d)           		use positive look ahead to see if at least one digit exists
+		(?=.*[a-z])        		use positive look ahead to see if at 
+								least one lower case letter exists
+		(?=.*[A-Z])        		use positive look ahead to see if at 
+								least one upper case letter exists
+		(?=.*\d)           		use positive look ahead to see if at 
+								least one digit exists
 		.+                 		gobble up the entire string
 		$                  		the end of the string
 	"""
@@ -130,7 +133,8 @@ def users_DB_rootkey(group = 'default'):
 	""" 	
 		parent keys are used to ensure all users are in the same entity group. 
 		The parent key is in the form kind/key_name (e.g. user_DB/'default') 
-		Child keys are in the format kind/parent/ID (e.g. user_DB/'default'/XXXXXX)
+		Child keys are in the format kind/parent/ID 
+		(e.g. user_DB/'default'/XXXXXX)
 		
 		There's an equivalent format user_DB(key_name=group) 
 	"""
@@ -205,7 +209,9 @@ class Message(db.Model):
 	
 	def render(self, b_summarize = None):
 		self._render_text = self.body.replace('\n','<br>')
-		return render_str("formattedMsg.html", page = self, summarize_text = b_summarize)
+		return render_str("formattedMsg.html",\
+							page = self,\
+							summarize_text = b_summarize)
     	
 	@classmethod 
 	def db_by_id(cls, msgID):
@@ -337,12 +343,16 @@ class BaseHandler(webapp2.RequestHandler):
     def read_secure_cookie(self, name):
         """(str) -> str or Nonetype
             read_secure_cookie uses a python shortcut
-            if expression 1 and expression 2 match, the return value is expression 1
-            if expression 1 and expression 2 don't match, the return value is expression 2
-			if expression 1 or expression 2 is False, the return value is false
+            if expression 1 and expression 2 match, 
+			the return value is expression 1
+            if expression 1 and expression 2 doesn't match, 
+			the return value is expression 2
+			if expression 1 or expression 2 is False, 
+			the return value is false
 			
-			check_secure_val takes the cookie value which is in the format 
-			userID | hashed value and returns the userID portion if the hashed value
+			check_secure_val takes the cookie value which 
+			is in the format userID | hashed value and returns 
+			the userID portion if the hashed value
 			validates
 			e.g. 1 | 2b1423ca5183a0ff98bda78157ac08df would return 1 
         """
@@ -368,15 +378,18 @@ class BaseHandler(webapp2.RequestHandler):
            the user is logged in. The framework calls webapp2 with
            every request triggering initialize with every request.
            Initialize checks for a user cookie, if a cookie exists,
-           initialize checks the cookie and sets the cookie if the cookie is valid
+           initialize checks the cookie and sets the cookie if the 
+		   cookie is valid
         """
 		webapp2.RequestHandler.initialize(self, *a, **kw)
 		uid = self.read_secure_cookie('user_id')				## return string value of user ID
 		self.user = uid and cache_user(uid)
 		if self.user:
 			userMsgFile = self.user.msg_file
-			self.inbox = sorted(db.get(userMsgFile.messageKeys), key=lambda x:x.created, reverse=True)
-			self.outbox = sorted(db.get(userMsgFile.sentKeys), key=lambda x:x.created, reverse =True)
+			self.inbox = sorted(db.get(userMsgFile.messageKeys),\
+			key=lambda x:x.created, reverse=True)
+			self.outbox = sorted(db.get(userMsgFile.sentKeys),\
+			key=lambda x:x.created, reverse =True)
 			
     def notfound(self):
 		self.error(404)
@@ -410,15 +423,19 @@ class MainPage(BaseHandler):
 	
 		##check the password
 		user, pw_msg = user_DB.db_login(input_username,input_password)
-		## db_login returns the user id and the empty string if the password validates, 
-		## the user and the msg "Username and password don't match" if the user was found 
-		## but the password doesn't validate, and "Invalid login" otherwise
+		# db_login returns the user id and the empty string 
+		# if the password validates, the user and the msg 
+		# "Username and password don't match" if the user 
+		# was found but the password doesn't validate, and 
+		# "Invalid login" otherwise
 		
 		if user and pw_msg == '': 
 			self.handler_login(user)
 			self.redirect("/")
 		else:
-			self.render('base.html', name_provided = input_username, password_error = pw_msg) 
+			self.render('base.html',\
+					name_provided = input_username,\
+					password_error = pw_msg) 
 		
 class SentPage(BaseHandler):
 	def get(self):
@@ -544,7 +561,8 @@ class ComposeMessage(BaseHandler):
 			# store the message object
 			to_store.put()
 			
-			# retrieve the recipient's message file and add the message to their message list
+			# retrieve the recipient's message file and
+			# add the message to their message list
 			# and unread message list
 			msg_file = recipientEntity.msg_file
 			msg_file.messageKeys.append(to_store.key())
@@ -564,7 +582,11 @@ class ComposeMessage(BaseHandler):
 			
 			##pass the error message to the render fuction
 			##the function then passes 'error' to the form
-			self.render("composeMsg.html",recipient = recipient, subject = msg_subject, body = msg_body, error=error)
+			self.render("composeMsg.html",\
+						recipient = recipient,\
+						subject = msg_subject,\
+						body = msg_body,\
+						error=error)
 
 
 ########## VIEW MESSAGE ##########				
@@ -577,13 +599,15 @@ class ViewMessage(BaseHandler):
 		## 
 		# Implementation note: 
 		# --------------------
-		# we're using the key as a url. The app extracts the URL (which is actually a key) 
-		# and uses the key to retrieve the message from the database. 
+		# we're using the key as a url. The app extracts
+		# the URL (which is actually a key) and uses the
+		# key to retrieve the message from the database. 
 		# use path[1:] to strip off the leading "/"
 		#
-		# Originally there was no parent key and the key == id. That allowed 
-		# code Message.get(db.Key(path[1:])) where the function db.Key() converted 
-		# a string to a key. When there is a parent component to the path the 
+		# Originally there was no parent key and the key == id. 
+		# That allowed code Message.get(db.Key(path[1:])) where 
+		# the function db.Key() converted a string to a key. 
+		# When there is a parent component to the path the 
 		# key != ID so 
 		##
 		msg = Message.db_by_id(int(path[1:]))
@@ -591,9 +615,11 @@ class ViewMessage(BaseHandler):
 		## 
 		# Impmlementation note: 
 		# ---------------------
-		# Validate that the user that's logged in is either the reipient or the author of the message
-		# If not, fail silently. Don't give the user an more information
-		# [REFACTOR - add recipientKeys back to the message. validate that user.key() is in recipientKey]
+		# Validate that the user that's logged in is either
+		# the reipient or the author of the message. If not, 
+		# fail silently. Don't give the user an more information
+		# [REFACTOR - add recipientKeys back to the message. 
+		# validate that user.key() is in recipientKey]
 		##
 		# if self.user.key() not in self.user.msg_file.message and self.user.key().id() != msg.authorID: 
 			# self.error(400)
@@ -614,13 +640,16 @@ class ViewMessage(BaseHandler):
 	##
 	# Implementation note: 
 	# -------------------
-	# The app posts to the ViewMessage handlers when either the 'Reply' or 'Delete' button
-	# is clicked. When the 'Reply' button is clicked, we extract the values for the message
-	# author and subject, build a query string, and redirect to /newMsg with the query string
-	# allowing the app to fill in the recipient and subject of the new message 
+	# The app posts to the ViewMessage handlers when either
+	# the 'Reply' or 'Delete' button is clicked. When the 
+	# 'Reply' button is clicked, we extract the values for 
+	# the message author and subject, build a query string, 
+	# and redirect to /newMsg with the query string allowing 
+	# the app to fill in the recipient and subject of the new 
+	# message 
 	#
-	# When the 'Delete' button is clicked, we verify that we are the last recipient and 
-	# delete the message
+	# When the 'Delete' button is clicked, we verify that we 
+	# are the last recipient and delete the message
 	# [NTD: REFACTOR]
 	##
 	
@@ -657,17 +686,22 @@ class ViewGroup(BaseHandler):
 			self.error(400)
 			return
 		
-		## we're using the key as a url. The app extracts the URL (which is actually a key) 
-		## and uses the key to retrieve the message from the database. 
-		## use path[1:] to strip off the leading "/"
+		# we're using the key as a url. The app extracts
+		# the URL (which is actually a key) and uses the 
+		# key to retrieve the message from the database. 
+		# use path[1:] to strip off the leading "/"
 		groupsUserBelongsTo = cache_user_group(self.user.key().id()); 
 		temp = UserGroup.all().filter("groupIDs = ", self.user.key().id()).get()
 		logging.error("ViewGroup/Get groups =%s, %s"%(groupsUserBelongsTo,temp))
 		
-		## check that the user that's logged in is actually a reipient of this message
-		## if not, fail silently. Don't give the user an more information 
+		# check that the user that's logged in is actually
+		# a reipient of this message if not, fail silently. 
+		# Don't give the user an more information 
 		
-		self.render("viewGroup.html", groups = groupsUserBelongsTo, numMsgs = len(self.inbox), numSentMsgs = len(self.outbox))
+		self.render("viewGroup.html",\
+				groups = groupsUserBelongsTo,\
+				numMsgs = len(self.inbox),\
+				numSentMsgs = len(self.outbox))
 	
 	def post(self): 
 		
@@ -679,7 +713,10 @@ class ViewGroup(BaseHandler):
 		error_msg = ""
 		if not valid_groupname(input_groupname): 
 			error_msg = "Please enter a valid groupname"
-			self.render("viewGroup.html", user_input_groupname = input_groupname, groups = groupsUserBelongsTo, error = error_msg)
+			self.render("viewGroup.html",\
+						user_input_groupname = input_groupname,\
+						groups = groupsUserBelongsTo,\
+						error = error_msg)
 			return
 			
 		if selected_action == "makeGroup": 
@@ -687,10 +724,15 @@ class ViewGroup(BaseHandler):
 			
 			if qry: 
 				error_msg = "That group already exists" 
-				self.render("viewGroup.html", user_input_groupname = input_groupname, groups = groupsUserBelongsTo, error = error_msg)
+				self.render("viewGroup.html",\
+							user_input_groupname = input_groupname,\
+							groups = groupsUserBelongsTo,\
+							error = error_msg)
 			else:
-				to_store = UserGroup(parent = group_DB_rootkey(), groupname = input_groupname.lower(),\
-							groupKeys = [self.user.key()], groupAuthor = self.user.key())
+				to_store = UserGroup(parent = group_DB_rootkey(),\
+									groupname = input_groupname.lower(),\
+									groupKeys = [self.user.key()],\
+									groupAuthor = self.user.key())
 				to_store.put()
 				cache_group(input_groupname, update=True)
 				cache_user_group(self.user.key().id(), update=True)
@@ -700,7 +742,10 @@ class ViewGroup(BaseHandler):
 			qry = cache_group(input_groupname)
 			if not qry: 
 				error_msg = "That group doesn't exist" 
-				self.render("viewGroup.html", user_input_groupname = input_groupname, groups = groupsUserBelongsTo, error = error_msg)
+				self.render("viewGroup.html",\
+							user_input_groupname = input_groupname,\
+							groups = groupsUserBelongsTo,\
+							error = error_msg)
 			else: 
 				qry.groupKeys.append(self.user.key())
 				qry.put()
@@ -711,11 +756,17 @@ class ViewGroup(BaseHandler):
 			qry = cache_group(input_groupname)
 			if not qry: 
 				error_msg = "That group doesn't exist" 
-				self.render("viewGroup.html", user_input_groupname = input_groupname, groups = groupsUserBelongsTo, error = error_msg)
+				self.render("viewGroup.html",\
+							user_input_groupname = input_groupname,\
+							groups = groupsUserBelongsTo,\
+							error = error_msg)
 			else: 
 				if self.user.key() not in qry.groupKeys: 
 					error_msg = "You don't belong to that group" 
-					self.render("viewGroup.html", user_input_groupname = input_groupname, groups = groupsUserBelongsTo, error = error_msg)
+					self.render("viewGroup.html",\
+								user_input_groupname = input_groupname,\
+								groups = groupsUserBelongsTo,\
+								error = error_msg)
 				else:
 					qry.groupKeys.remove(self.user.key())
 					qry.put()
@@ -726,10 +777,16 @@ class ViewGroup(BaseHandler):
 			qry = cache_group(input_groupname)
 			if not qry: 
 				error_msg = "That group doesn't exist" 
-				self.render("viewGroup.html", user_input_groupname = input_groupname, groups = groupsUserBelongsTo, error = error_msg)
+				self.render("viewGroup.html",\
+							user_input_groupname = input_groupname,\
+							groups = groupsUserBelongsTo,\
+							error = error_msg)
 			elif qry.groupAuthor != self.user.key(): 
 				error_msg = "Only group author can delete group"
-				self.render("viewGroup.html", user_input_groupname = input_groupname, groups = groupsUserBelongsTo, error = error_msg)
+				self.render("viewGroup.html",\
+							user_input_groupname = input_groupname,\
+							groups = groupsUserBelongsTo,\
+							error = error_msg)
 			else: 
 				## we have a problem here in that we need to update the cache for all members of the group
 				qry.delete()
