@@ -5,10 +5,10 @@
 	<title>uMsg: Udacity messaging</title>
 	
 	<script src="http://code.jquery.com/jquery-1.10.1.min.js"></script>
-    <link rel="stylesheet" href="https://netdna.bootstrapcdn.com/bootstrap/3.0.0-wip/css/bootstrap.min.css">
+    <link rel="stylesheet" href="https://netdna.bootstrapcdn.com/bootstrap/3.0.0/css/bootstrap.min.css">
 	
 	<!-- Latest compiled and minified JavaScript -->
-	<script src="https://netdna.bootstrapcdn.com/bootstrap/3.0.0-wip/js/bootstrap.min.js"></script>
+	<script src="https://netdna.bootstrapcdn.com/bootstrap/3.0.0/js/bootstrap.min.js"></script>
 	
 	<link type="text/css" rel="stylesheet" href="/stylesheets/static.css"/>
 	
@@ -58,7 +58,7 @@
 							<label for="InputUsername" class="col-lg-5 control-label">Username</label>
 							<div class="col-lg-7">
 								<input class="form-control" id="InputUsername" placeholder="Username" required
-									type = "text" pattern="^\w{3,20}$" name = "username" value= "{{name_provided}}">
+									type = "text" pattern="^[a-zA-Z0-9]{3,20}$" name = "username" value= "{{name_provided}}">
 							</div>
 						</div>
 						
@@ -94,7 +94,7 @@
 		{% if user %} 
 			<!-- this begins the content section --> 
 			<div class="row"> 
-				<div class="col-lg-2 col-offset-1"> 
+				<div class="col-lg-1 col-lg-offset-1"> 
 					{% block sidebar %}
 					{% endblock %}
 				</div>

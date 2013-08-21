@@ -81,7 +81,7 @@ def escape_html(input_string):
     return cgi.escape(input_string,quote=True)
 
 def valid_username(username):
-    USER_RE = re.compile(r"^[a-zA-Z0-9_-]{3,20}$")
+    USER_RE = re.compile(r"^[a-zA-Z0-9]{3,20}$")
     if USER_RE.match(username):
 		return True 
     return False
@@ -451,7 +451,7 @@ class SentPage(BaseHandler):
 			self.error(400)
 			return 
 		else:
-			self.render("sentPanel.html",\
+			self.render("summaryPanel.html",\
 						numMsgs = len(self.inbox),\
 						numSentMsgs = len(self.outbox),\
 						msgs = self.outbox,\
@@ -474,11 +474,8 @@ class ComposeMessage(BaseHandler):
 		
 		## REFACTOR USE SOMETHING OTHER THAN ARGUMENTS
 		
-		if self.request.get('msgAuthor'): 
-			logging.error("Compose message %s"%self.request.get('msgAuthor'))
 		
-		if self.request.arguments != []: 
-			logging.error("ComposeMessage = %s, %s"%(self.request.arguments, self.request.get('msgAuthor')))
+		if self.request.get('msgAuthor'): 
 			self.render("composeMsg.html",\
 				numMsgs = len(self.inbox),\
 				numSentMsgs = len(self.outbox),\
