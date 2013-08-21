@@ -2,9 +2,6 @@ html {
 	height: 100%;
 }
 
-/** {
-    border:1px solid grey;
-}*/
 
 body {
 	height: 100%;
@@ -73,37 +70,7 @@ body {
 }
 	
 
-/* Formatting for an error logging in */ 
-.fallbackBrowserError {
-	color:red; 
-}
 
-.nav-my-pull-right { 
-	float: none; 
-	margin: auto; 
-	list-style-type: none;
-}
-
-.compose-container { 
-	width: 100%;
-	border: 1px solid; 
-}
-
-/* formatting for summaryPanel page */ 
-
-.viewEmailBtn { 
-	margin: 0; 
-}
-	
-.msg-form input{ 
-	width: 98%; 
-}
-
-.msg-form text-area{ 
-	width: 98%; 
-	min-height: 50%; 
-}
-	
 
 
 

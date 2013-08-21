@@ -16,9 +16,12 @@ import logging
 import time
 import hashsecret
 import markdown
+import pickle
+import Trie
 
 from google.appengine.ext import db
 from google.appengine.api import memcache
+from google.appengine.api import taskqueue
 import urlparse
 from collections import OrderedDict
 
@@ -112,23 +115,16 @@ def valid_groupname(groupname):
 	return False
 	
 
-########## PERMALINK FUNCTION ##########
-
-##  the URLs are organized by date and title  
-##  to create a unique identifier
-##  Format is /year/day/title
-##  e.g. /2013/150/lebron-wins-title
-
-
-def get_id_from(input_string):
-    
-    regexp = r'[0-9]+$'
-		
-    return int(input_string[re.search(regexp,input_string).start():\
-				re.search(regexp,input_string).end()])
 		
 					
-########## DATABASE CLASSES ##########	
+##
+# Implemenation note: 
+# -------------------
+# The app uses 5 database models. 
+#
+#
+##
+
 def users_DB_rootkey(group = 'default'):
 	""" 	
 		parent keys are used to ensure all users are in the same entity group. 
@@ -201,9 +197,8 @@ class Message(db.Model):
 	author = db.StringProperty(required = True)
 	authorID = db.IntegerProperty(required = True)
 	subject = db.StringProperty(required = False)
-	body = db.TextProperty(required = False)
+	body = db.TextProperty(required = False, indexed = False)
 	recipientKeys = db.ListProperty(db.Key, required = True, indexed = False) 
-	hasBeenRead = db.StringProperty(required = False)
 	##auto_now_add sets created to be the current time
 	created = db.DateTimeProperty(auto_now_add = True)
 	
@@ -218,7 +213,12 @@ class Message(db.Model):
 		return Message.get_by_id(msgID, message_DB_rootkey())
 	
     		
-########## USER GROUP DATABASE ##########
+##
+# Function: group_DB_rootkey
+# --------------------------
+# Generates default key to serve as parent key for 
+# UserGroup entity model 
+##
 
 def group_DB_rootkey(group = 'default'):
 	""" 
@@ -266,8 +266,24 @@ class MsgFile(db.Model):
 		msgFile.put()
 		return msgFile
 		
+##
+# Class: NameTrie
+# ---------------
+# NameTrie is used to hold a Trie built from 
+# all the user names
+##		
+
+class NameTrie(db.Model): 
+	triedata = db.TextProperty(required = True)
 	
-########## CACHING FUNCTIONS ##########		
+
+		
+##
+# Implementation note: 
+# --------------------
+# 
+# CACHING FUNCTIONS ##########		
+##
 		
 ##  cache_user is used for our user tracking system
 ##  (e.g. when the front page is generated or we generate
@@ -472,9 +488,15 @@ class ComposeMessage(BaseHandler):
 			self.error(400)
 			return
 		
-		## REFACTOR USE SOMETHING OTHER THAN ARGUMENTS
-		
-		
+		##
+		# Implementation note: 
+		# -------------------
+		# The only time ComposeMessage is rendered with msgAuthor
+		# parameters is on a redirect from the ViewMessage handler.
+		# The ViewMessage handler extracts the post data, builds 
+		# a query string from the post data, and redirects to 
+		# the /newMsg URL
+		## 
 		if self.request.get('msgAuthor'): 
 			self.render("composeMsg.html",\
 				numMsgs = len(self.inbox),\
@@ -492,8 +514,8 @@ class ComposeMessage(BaseHandler):
 			self.error(400)
 			return
 		
-		##retreive the field named "subject" and the field named "content"
-		##from the form submission
+		# retreive the field named "subject" and 
+		# the field named "content" from the form submission
 		msg_recipient = self.request.get("recipient")
 		msg_subject = self.request.get("subject")
 		msg_body = self.request.get("body")
@@ -585,8 +607,8 @@ class ComposeMessage(BaseHandler):
 		else: 
 			error = "That recipient doesn't exist"
 			
-			##pass the error message to the render fuction
-			##the function then passes 'error' to the form
+			# pass the error message to the render fuction
+			# the function then passes 'error' to the form
 			self.render("composeMsg.html",\
 						recipient = msg_recipient,\
 						subject = msg_subject,\
@@ -656,10 +678,6 @@ class ViewMessage(BaseHandler):
 	# and redirect to /newMsg with the query string allowing 
 	# the app to fill in the recipient and subject of the new 
 	# message 
-	#
-	# When the 'Delete' button is clicked, we verify that we 
-	# are the last recipient and delete the message
-	# [NTD: REFACTOR]
 	##
 	
 	def post(self, path): 
@@ -684,30 +702,24 @@ class ViewMessage(BaseHandler):
 			self.user.msg_file.put()
 			
 			self.redirect("/") 
-		
-		
 			
 					
-########## GROUPS ##########				
+##
+# Class: View Group
+# -----------------
+# 
+## 				
 class ViewGroup(BaseHandler):
 	def get(self):
 		if not self.user:
 			self.error(400)
 			return
 		
-		# we're using the key as a url. The app extracts
-		# the URL (which is actually a key) and uses the 
-		# key to retrieve the message from the database. 
-		# use path[1:] to strip off the leading "/"
 		groupsUserBelongsTo = cache_user_group(self.user); 
 		
 		# REFACTOR: DELETE
 		temp = UserGroup.all().filter("groupIDs = ", self.user.key().id()).get()
 		logging.error("ViewGroup/Get groups =%s, %s"%(groupsUserBelongsTo,temp))
-		
-		# check that the user that's logged in is actually
-		# a reipient of this message if not, fail silently. 
-		# Don't give the user an more information 
 		
 		self.render("viewGroup.html",\
 				groups = groupsUserBelongsTo,\
@@ -910,13 +922,46 @@ class Register(SignupPage):
 			user = user_DB.register(self.input_username, self.input_password, newMsgFile.key())
 			user.put()
 			
-			
+			taskqueue.add(params={'name':self.input_username})
 			self.handler_login(user)
 			## [NTD: uncomment] cache_user(user.key().id())
 			self.redirect("/")
+
+## 
+# Class: TrieManager
+# ------------------
+# The TrieManager class handles pickling/unpickling, 
+# updating, and storing of the Trie
+# 
+#
+## 
+class TrieManager(webapp2.RequestHandler): 
+
+	
+	def post(self): 
+	
+		newName = self.request.get('name')
+		qry = NameTrie.all().get()
+		
+		# check if this is the first user
+		if qry: 
+			trie = pickle.loads(qry.triedata)
+			trie.put(newName, 1) 
+			qry.triedata = pickle.dumps(trie)
+			qry.put()
+		else: 
+			newTrie = Trie.TrieST()
+			newTrie.put(newName, 1)
+			newTriedata = pickle.dumps(newTrie)
+			newNameTrie = NameTrie(triedata = newTriedata) 
+			newNameTrie.put()
 			
 		
-########## LOGOUT PAGE ##########					
+##
+# Class: LogoutPage
+# -----------------
+# 
+## 					
 class LogoutPage(BaseHandler):
 	
     def get(self):
@@ -940,4 +985,5 @@ app = webapp2.WSGIApplication([('/', MainPage),
 								('/sent', SentPage), 
 								('/logout',LogoutPage),
 								( MSGKEY_RE, ViewMessage),
+								('/_ah/queue/default', TrieManager), 
 								],debug = True)
