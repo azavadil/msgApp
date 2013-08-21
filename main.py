@@ -315,17 +315,13 @@ def cache_group(groupname, update = False):
 		memcache.set(groupname, group_result)
 	return group_result
 
-##
-# Implementation note: Request Handlers
-# -------------------------------------
-# baseHandler is the main request handler that other handlers inherit from. We put the convience  
-# methods in baseHandler
-## 
 		
 ##
 # Class: BaseHandler 
 # ------------------
-# 
+# BaseHandler is the main request handler that other 
+# handlers inherit from. We put the convience methods 
+# in baseHandler
 ## 
 							
 class BaseHandler(webapp2.RequestHandler):
@@ -398,7 +394,12 @@ class BaseHandler(webapp2.RequestHandler):
 		self.error(404)
 		self.write('<h1>404: Note Found</h1> Sorry, my friend, but that page does not exist. ')					
 			
-########## FRONT PAGE ##########	
+##
+# Class: MainPage
+# ---------------
+# MainPage handles the landing page and the main user page. 
+# 
+## 	
 class MainPage(BaseHandler):
 	def get(self):
 		
@@ -420,17 +421,20 @@ class MainPage(BaseHandler):
 			The app can also post from the MainPage when the user is 
 			making, joining, or leaving a group 
 		"""
-		##hold what the user entered
+
 		input_username = self.request.get('username')
 		input_password = self.request.get('password')
 	
-		##check the password
-		user, pw_msg = user_DB.db_login(input_username,input_password)
+		##
+		# Implementation note: 
+		# --------------------
 		# db_login returns the user id and the empty string 
 		# if the password validates, the user and the msg 
 		# "Username and password don't match" if the user 
 		# was found but the password doesn't validate, and 
 		# "Invalid login" otherwise
+		##
+		user, pw_msg = user_DB.db_login(input_username,input_password)
 		
 		if user and pw_msg == '': 
 			self.handler_login(user)
@@ -443,7 +447,6 @@ class MainPage(BaseHandler):
 class SentPage(BaseHandler):
 	def get(self):
 		
-		## pass the inbox as a parameter to render 
 		if not self.user: 
 			self.error(400)
 			return 
@@ -459,7 +462,7 @@ class SentPage(BaseHandler):
 ##
 # Class: ComposeMessage
 # ---------------------
-# 
+# ComposeMessage handles creation and sending of messages. 
 # 
 ##
 				
@@ -469,7 +472,11 @@ class ComposeMessage(BaseHandler):
 			self.error(400)
 			return
 		
-		## REFACTOR
+		## REFACTOR USE SOMETHING OTHER THAN ARGUMENTS
+		
+		if self.request.get('msgAuthor'): 
+			logging.error("Compose message %s"%self.request.get('msgAuthor'))
+		
 		if self.request.arguments != []: 
 			logging.error("ComposeMessage = %s, %s"%(self.request.arguments, self.request.get('msgAuthor')))
 			self.render("composeMsg.html",\
@@ -510,6 +517,7 @@ class ComposeMessage(BaseHandler):
 			to_store.put()
 			
 			for recipient in recipients: 
+				logging.error("compose message = %s"%recipient.user_name)
 				curr_file = recipient.msg_file
 				curr_file.messageKeys.append(to_store.key())
 				curr_file.unreadKeys.append(to_store.key())
@@ -535,8 +543,8 @@ class ComposeMessage(BaseHandler):
 		
 			to_store.put()
 			
-			for recipient in group_qry.groupKeys: 
-				msg_file = recipient.msg_file
+			for recipientKey in group_qry.groupKeys:
+				msg_file = user_DB.get(recipientKey).msg_file
 				msg_file.messageKeys.append(to_store.key())
 				msg_file.unreadKeys.append(to_store.key())
 				msg_file.put()
@@ -583,13 +591,18 @@ class ComposeMessage(BaseHandler):
 			##pass the error message to the render fuction
 			##the function then passes 'error' to the form
 			self.render("composeMsg.html",\
-						recipient = recipient,\
+						recipient = msg_recipient,\
 						subject = msg_subject,\
 						body = msg_body,\
 						error=error)
 
 
-########## VIEW MESSAGE ##########				
+##
+# Class: ViewMessage
+# ------------------
+# 
+##
+				
 class ViewMessage(BaseHandler):
 	def get(self, path):
 		if not self.user:
@@ -613,13 +626,11 @@ class ViewMessage(BaseHandler):
 		msg = Message.db_by_id(int(path[1:]))
 		
 		## 
-		# Impmlementation note: 
-		# ---------------------
+		# Impmlementation note: defend against malicious users
+		# ----------------------------------------------------
 		# Validate that the user that's logged in is either
-		# the reipient or the author of the message. If not, 
-		# fail silently. Don't give the user an more information
-		# [REFACTOR - add recipientKeys back to the message. 
-		# validate that user.key() is in recipientKey]
+		# the recipient or the author of the message. If not, 
+		# fail silently. Don't give the user any more information
 		##
 		if self.user.key() not in msg.recipientKeys and self.user.key().id() != msg.authorID: 
 			self.error(400)
@@ -633,7 +644,8 @@ class ViewMessage(BaseHandler):
 					message_HTML = markdown.markdown(msg.body),\
 					message = msg,\
 					numMsgs = len(self.inbox),\
-					numSentMsgs = len(self.outbox))
+					numSentMsgs = len(self.outbox),\
+					user = self.user)
 	
 	
 	
@@ -665,12 +677,11 @@ class ViewMessage(BaseHandler):
 		if selectedAction == "reply":
 		
 			qsParams = OrderedDict([("msgAuthor",msgAuthor),("msgSubject", msgSubject)])
-			
 			self.redirect("/newMsg?" + urllib.urlencode(qsParams))
 		
 		if selectedAction == "delete": 
-	
-			self.user.msg_file.messageKeys.remove(msg.key())
+			if msg.key() in self.user.msg_file.messageKeys: 
+				self.user.msg_file.messageKeys.remove(msg.key())
 			if msg.key() in self.user.msg_file.unreadKeys: 
 				self.user.msg_file.unreadKeys.remove(msg.key()) 
 			self.user.msg_file.put()
@@ -691,7 +702,9 @@ class ViewGroup(BaseHandler):
 		# the URL (which is actually a key) and uses the 
 		# key to retrieve the message from the database. 
 		# use path[1:] to strip off the leading "/"
-		groupsUserBelongsTo = cache_user_group(self.user.key().id()); 
+		groupsUserBelongsTo = cache_user_group(self.user); 
+		
+		# REFACTOR: DELETE
 		temp = UserGroup.all().filter("groupIDs = ", self.user.key().id()).get()
 		logging.error("ViewGroup/Get groups =%s, %s"%(groupsUserBelongsTo,temp))
 		
@@ -719,10 +732,19 @@ class ViewGroup(BaseHandler):
 						groups = groupsUserBelongsTo,\
 						error = error_msg)
 			return
+		
+		##
+		# Implementation note: 
+		# --------------------
+		# The programs checks for conflicts with both groupnames
+		# and usernames. The program takes the 'To' field and looks
+		# for a group or user that matches. Therefore, we must for 
+		# unique names
+		## 
 			
 		if selected_action == "makeGroup": 
 			qry = cache_group(input_groupname) 
-			user = user_DB.db_by_name(self.input_username)
+			user = user_DB.db_by_name(input_groupname)
 			if qry or user: 
 				error_msg = "That group already exists" 
 				self.render("viewGroup.html",\
@@ -782,7 +804,16 @@ class ViewGroup(BaseHandler):
 							user_input_groupname = input_groupname,\
 							groups = groupsUserBelongsTo,\
 							error = error_msg)
-			elif qry.groupAuthor != self.user.key(): 
+			##
+			# Implementation note: 
+			# --------------------
+			# groupAuthor is set as Reference property on the group. 
+			# Therefore, qry.groupAuthor dereferences a user entity. 
+			# This may be a surprising result since we set groupAuthor
+			# to be self.user.key().
+			##
+			elif qry.groupAuthor.key() != self.user.key(): 
+				logging.error("delete group %s, %s"%(qry.groupAuthor, self.user.key())) 
 				error_msg = "Only group author can delete group"
 				self.render("viewGroup.html",\
 							user_input_groupname = input_groupname,\
@@ -869,6 +900,15 @@ class Register(SignupPage):
 			msg = 'That user already exists.'
 			self.render('signupPage.html', fallback_error = msg, isSignupPage = True)
 		else:
+			##
+			# Implementation note: 
+			# --------------------
+			# MsgFile.register() works like a factory creating 
+			# a new MsgFile entity. The new entity is used to 
+			# establish a one-to-one relationship between the 
+			# MsgFile and the user
+			## 
+			
 			newMsgFile = MsgFile.register()
 			user = user_DB.register(self.input_username, self.input_password, newMsgFile.key())
 			user.put()

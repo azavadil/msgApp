@@ -33,6 +33,10 @@
   			<div class="panel">
   	 			<div class="panel-heading">
     				<h3 class="panel-title">Messages</h3>
+						<ul class="pager">
+						  <li class="previous"><a href="#">&larr; Newer</a></li>
+						  <li class="next"><a href="#">Older &rarr;</a></li>
+						</ul>
   				</div>
 			
 				<div class="panel-body">  
@@ -49,15 +53,15 @@
 						{% for msg in msgs %}
 							<tr>
 								<td>
-									<a class = "{{ '' if user.key().id() in msg.hasNotBeenRead else 'gray-link'}}" href="/{{msg.key().id()}}">{{msg.author}}</a>
+									<a class = "{{ '' if msg.key() in user.msg_file.unreadKeys else 'gray-link'}}" href="/{{msg.key().id()}}">{{msg.author}}</a>
 								</td>
 				
 								<td>
-									<a class = "{{ '' if user.key().id() in msg.hasNotBeenRead else 'gray-link'}}" href="/{{msg.key().id()}}">{{msg.subject}}</a>
+									<a class = "{{ '' if msg.key() in user.msg_file.unreadKeys else 'gray-link'}}" href="/{{msg.key().id()}}">{{msg.subject}}</a>
 								</td>
 				
 								<td>
-									<a class = "{{ '' if user.key().id() in msg.hasNotBeenRead else 'gray-link'}}" href="/{{msg.key().id()}}">{{ msg.created.strftime("%b %d, %Y") }}</a>
+									<a class = "{{ '' if msg.key() in user.msg_file.unreadKeys else 'gray-link'}}" href="/{{msg.key().id()}}">{{ msg.created.strftime("%b %d, %Y") }}</a>
 								</td>
 							</tr>
 						{% endfor %}
