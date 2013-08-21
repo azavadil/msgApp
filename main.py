@@ -18,6 +18,7 @@ import hashsecret
 import markdown
 import pickle
 import Trie
+import json
 
 from google.appengine.ext import db
 from google.appengine.api import memcache
@@ -505,9 +506,15 @@ class ComposeMessage(BaseHandler):
 				subject = "RE: " + self.request.get('msgSubject'))
 		else: 
 			
+			qry = NameTrie.all().get()
+			logging.warning("logging warning %s"%qry.triedata)
+			trie = pickle.loads(qry.triedata) 
+			jsontrie = json.dumps(trie)
+			
 			self.render("composeMsg.html",\
 				numMsgs = len(self.inbox),\
-				numSentMsgs = len(self.outbox))
+				numSentMsgs = len(self.outbox),\
+				data = jsontrie)
 		
 	def post(self,path):
 		if not self.user:

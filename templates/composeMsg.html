@@ -50,4 +50,11 @@
 		
 				
   </div> 
+  <script type="text/javascript">
+		function test_func(dataArg) {
+			console.log(dataArg);
+		}
+		test_func( {{ data|safe }} );
+  </script>  
+  
 {% endblock %}
