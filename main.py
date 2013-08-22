@@ -17,7 +17,6 @@ import time
 import hashsecret
 import markdown
 import pickle
-import Trie
 import json
 
 from google.appengine.ext import db
@@ -267,16 +266,6 @@ class MsgFile(db.Model):
 		msgFile.put()
 		return msgFile
 		
-##
-# Class: NameTrie
-# ---------------
-# NameTrie is used to hold a Trie built from 
-# all the user names
-##		
-
-class NameTrie(db.Model): 
-	triedata = db.TextProperty(required = True)
-	
 
 		
 ##
@@ -506,15 +495,11 @@ class ComposeMessage(BaseHandler):
 				subject = "RE: " + self.request.get('msgSubject'))
 		else: 
 			
-			qry = NameTrie.all().get()
-			logging.warning("logging warning %s"%qry.triedata)
-			trie = pickle.loads(qry.triedata) 
-			jsontrie = json.dumps(trie)
-			
+			## REFACTOR qry the database for a list of user names
+			## convert to json and pass to our template
 			self.render("composeMsg.html",\
 				numMsgs = len(self.inbox),\
-				numSentMsgs = len(self.outbox),\
-				data = jsontrie)
+				numSentMsgs = len(self.outbox))
 		
 	def post(self,path):
 		if not self.user:
@@ -929,40 +914,10 @@ class Register(SignupPage):
 			user = user_DB.register(self.input_username, self.input_password, newMsgFile.key())
 			user.put()
 			
-			taskqueue.add(params={'name':self.input_username})
 			self.handler_login(user)
 			## [NTD: uncomment] cache_user(user.key().id())
 			self.redirect("/")
 
-## 
-# Class: TrieManager
-# ------------------
-# The TrieManager class handles pickling/unpickling, 
-# updating, and storing of the Trie
-# 
-#
-## 
-class TrieManager(webapp2.RequestHandler): 
-
-	
-	def post(self): 
-	
-		newName = self.request.get('name')
-		qry = NameTrie.all().get()
-		
-		# check if this is the first user
-		if qry: 
-			trie = pickle.loads(qry.triedata)
-			trie.put(newName, 1) 
-			qry.triedata = pickle.dumps(trie)
-			qry.put()
-		else: 
-			newTrie = Trie.TrieST()
-			newTrie.put(newName, 1)
-			newTriedata = pickle.dumps(newTrie)
-			newNameTrie = NameTrie(triedata = newTriedata) 
-			newNameTrie.put()
-			
 		
 ##
 # Class: LogoutPage
@@ -992,5 +947,4 @@ app = webapp2.WSGIApplication([('/', MainPage),
 								('/sent', SentPage), 
 								('/logout',LogoutPage),
 								( MSGKEY_RE, ViewMessage),
-								('/_ah/queue/default', TrieManager), 
 								],debug = True)
