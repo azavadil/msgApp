@@ -397,16 +397,16 @@ class BaseHandler(webapp2.RequestHandler):
     	return cookie_val and check_secure_val(cookie_val)
 
     def handler_login(self, user):
-    	self.set_secure_cookie('user_id', str(user.key().id()))
-		
+		self.set_secure_cookie('user_id', str(user.key().id()))
+		self.set_secure_cookie('trie_flag', 'True')
 
     def handler_logout(self):
 		"""()->Nonetype
            handler_logout is implemented by setting the user_id value of the
            cookie to be blank
         """
+		self.response.headers.add_header('Set-Cookie', 'trie_flag=; Path=/')
 		self.response.headers.add_header('Set-Cookie', 'user_id=; Path=/')
-		self.response.headers.add_header('Set-Cookie', 'trie=; Path=/')
 		
     def initialize(self, *a, **kw):
 		"""
@@ -437,12 +437,13 @@ class BaseHandler(webapp2.RequestHandler):
 		# so the trie data is only sent once. 
 		##
 		self.triedata = None
-		flag = self.read_secure_cookie('trie')
-		if not flag: 
+		flag = self.read_secure_cookie('trie_flag')
+		logging.warning("Flag = %s"%flag)
+		if flag == 'True': 
 			qry = UserNames.all().get()
 			if qry: 
-				self.triedata = qry.userNameList
-				self.set_secure_cookie('trie', str(1))
+				self.triedata = json.dumps(qry.userNameList)
+				self.set_secure_cookie('trie_flag', 'Done')
 			
     def notfound(self):
 		self.error(404)
@@ -456,19 +457,37 @@ class BaseHandler(webapp2.RequestHandler):
 ## 	
 class MainPage(BaseHandler):
 	def get(self):
+	
+
+	
+		##
+		# Implemenation note: 
+		# -------------------
+		# There are three cases. The control flow is such that
+		# self.triedata will be populated with data only one time.
+		# If the user is not logged in, we render the summaryPanel 
+		# without data. 
+		# 
+		# If the user is logged in we check for trie data (only 
+		# occurs once) and include the trie data. 		
+		##
 		
-		## pass the inbox as a parameter to render 
 		if not self.user: 
+			self.render("summaryPanel.html")
+		elif self.triedata:
 			self.render("summaryPanel.html",\
+						numMsgs = len(self.inbox),\
+						numSentMsgs = len(self.outbox),\
+						msgs = self.inbox[:10],\
+						user = self.user,\
 						data = self.triedata)
-		else:
-			
+		else: 
 			self.render("summaryPanel.html",\
 						numMsgs = len(self.inbox),\
 						numSentMsgs = len(self.outbox),\
 						msgs = self.inbox[:10],\
 						user = self.user)
-			
+		
 	
 	def post(self):
 		""" we have two cases where a form can be posted from the MainPage. 

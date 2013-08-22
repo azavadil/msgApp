@@ -75,10 +75,7 @@
 	
 	{% if data %}
 		<script type="text/javascript">
-			function test_func(dataArg) {
-				console.log(dataArg);
-			}
-			test_func( {{ data|safe }} );
+			window.top.name = JSON.stringify( {{ data | safe }} ); 
 		</script>
 	{% endif %} 
 {% endblock %}
