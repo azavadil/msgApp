@@ -141,8 +141,8 @@ class user_DB(db.Model):
 	##required = True, will raise an exception if we try to create 
 	##content without a title
 	user_name = db.StringProperty(required = True)
-	pw_hash = db.StringProperty(required = True)
-	msg_file = db.ReferenceProperty(required = True)
+	pw_hash = db.StringProperty(required = True, indexed = False)
+	msg_file = db.ReferenceProperty(required = True, indexed = False)
 	##auto_now_add sets created to be the current time
 	created = db.DateTimeProperty(auto_now_add = True)
 	last_modified = db.DateTimeProperty(auto_now = True)
@@ -267,6 +267,37 @@ class MsgFile(db.Model):
 		return msgFile
 		
 
+def usernames_DB_rootkey(group = 'default'):
+	""" 
+		group_DB_rootkey takes a string and returns a key. 
+		The returned key is used as the parent key for the entire 
+		Message class. For this class a parent key isn't strictly 
+		necessary except to ensure consistency. 
+	"""
+	return db.Key.from_path('UserNames', group)		
+		
+##
+# Class: UserNames
+# ----------------
+# UserNames is used strictly to maintain a list of user names. 
+# The only purpose of the user names class is to provide fast 
+# access to a complete list of user names which is used to 
+# build the client side trie
+## 
+
+class UserNames(db.Model): 
+	userNameList = db.ListProperty(str, required = True)
+	
+	@classmethod
+	def addName(cls, name): 
+		qry = UserNames.all().get()
+		if not qry: 
+			newEntity = UserNames(parent = usernames_DB_rootkey(), userNameList = [name])
+			newEntity.put()
+		else: 
+			qry.userNameList.append(name)
+			qry.put()
+	
 		
 ##
 # Implementation note: 
@@ -297,7 +328,7 @@ def cache_user_group(user, update = False):
 		param userID: string that's used as database key
         param update: specifies whether the cache should be overwritten
 	"""
-	# REFACTOR DELETE CTRLF LOGGING
+	# REFACTOR DELETE CTRL-F LOGGING
 	logging.error("cache_user_group called")
 	
 	user_group_key = "group_" + str(user.key().id())
@@ -478,6 +509,11 @@ class ComposeMessage(BaseHandler):
 			self.error(400)
 			return
 		
+		
+		qry = UserNames.all().get()
+		nameList = qry.userNameList
+		jsonNameList = json.dumps(nameList)
+		logging.warning("jsonData %s"%jsonNameList)
 		##
 		# Implementation note: 
 		# -------------------
@@ -499,7 +535,8 @@ class ComposeMessage(BaseHandler):
 			## convert to json and pass to our template
 			self.render("composeMsg.html",\
 				numMsgs = len(self.inbox),\
-				numSentMsgs = len(self.outbox))
+				numSentMsgs = len(self.outbox),\
+				data = jsonNameList)
 		
 	def post(self,path):
 		if not self.user:
@@ -913,6 +950,7 @@ class Register(SignupPage):
 			newMsgFile = MsgFile.register()
 			user = user_DB.register(self.input_username, self.input_password, newMsgFile.key())
 			user.put()
+			UserNames.addName(self.input_username)
 			
 			self.handler_login(user)
 			## [NTD: uncomment] cache_user(user.key().id())
