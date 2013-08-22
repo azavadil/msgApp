@@ -18,6 +18,9 @@
 
 
 {% block content %}
+  <script type="text/javascript" src="\static\js\autocomplete.js"></script>
+  <script type="text/javascript" src="\static\js\Trie.js"></script>
+  
   <div class = "container col-lg-10"> 
 	<div class="navbar navbar-default">
 		<div class="navbar-inner">
@@ -31,7 +34,8 @@
   			<div class="form-group">
     			<label for="InputRecipient">To</label>     			
     			<input class="form-control" id="InputRecipient" type="text" placeholder="Enter recipient" 
-    			required name="recipient" pattern="^\w{3,20}$" value="{{recipient}}">
+    			required name="recipient" pattern="^\w{3,20}$" value="{{recipient}}" autocomplete = "off" 
+				list = "datalistNames" onkeyup = "inputCmpls()">
   			</div>
   			
   			
@@ -47,15 +51,12 @@
   
   			<button type="submit" class="btn btn-warning">Send</button>
 		</form>
-		<script type="text/javascript" src="\static\js\Trie.js"></script>
-		<script type="text/javascript">
-			var data = window.top.name ? JSON.parse(window.top.name) : null
-			if (data !== null) {
-				var trie =  buildTrie( JSON.parse( window.top.name ) );
-			} 
-		</script>
-				
   </div> 
-   
+ 
+  <div id = "datalistDiv"></div> 
+  <script type="text/javascript"> 
+	 setTrieInWindow()
+  </script>
+
   
 {% endblock %}
