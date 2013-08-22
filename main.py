@@ -398,6 +398,7 @@ class BaseHandler(webapp2.RequestHandler):
 
     def handler_login(self, user):
     	self.set_secure_cookie('user_id', str(user.key().id()))
+		
 
     def handler_logout(self):
 		"""()->Nonetype
@@ -405,7 +406,8 @@ class BaseHandler(webapp2.RequestHandler):
            cookie to be blank
         """
 		self.response.headers.add_header('Set-Cookie', 'user_id=; Path=/')
-
+		self.response.headers.add_header('Set-Cookie', 'trie=; Path=/')
+		
     def initialize(self, *a, **kw):
 		"""
            () -> Nonetype
@@ -418,7 +420,7 @@ class BaseHandler(webapp2.RequestHandler):
 		   cookie is valid
         """
 		webapp2.RequestHandler.initialize(self, *a, **kw)
-		uid = self.read_secure_cookie('user_id')				## return string value of user ID
+		uid = self.read_secure_cookie('user_id')				## return string value of user ID 
 		self.user = uid and cache_user(uid)
 		if self.user:
 			userMsgFile = self.user.msg_file
@@ -426,6 +428,21 @@ class BaseHandler(webapp2.RequestHandler):
 			key=lambda x:x.created, reverse=True)
 			self.outbox = sorted(db.get(userMsgFile.sentKeys),\
 			key=lambda x:x.created, reverse =True)
+		
+		
+		## 
+		# Implementation note: 
+		# -------------------
+		# The app will only execute the conditional once
+		# so the trie data is only sent once. 
+		##
+		self.triedata = None
+		flag = self.read_secure_cookie('trie')
+		if not flag: 
+			qry = UserNames.all().get()
+			if qry: 
+				self.triedata = qry.userNameList
+				self.set_secure_cookie('trie', str(1))
 			
     def notfound(self):
 		self.error(404)
@@ -442,7 +459,8 @@ class MainPage(BaseHandler):
 		
 		## pass the inbox as a parameter to render 
 		if not self.user: 
-			self.render("summaryPanel.html")
+			self.render("summaryPanel.html",\
+						data = self.triedata)
 		else:
 			
 			self.render("summaryPanel.html",\
