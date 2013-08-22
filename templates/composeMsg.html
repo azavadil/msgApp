@@ -47,7 +47,13 @@
   
   			<button type="submit" class="btn btn-warning">Send</button>
 		</form>
-		
+		<script type="text/javascript" src="\static\js\Trie.js"></script>
+		<script type="text/javascript">
+			var data = window.top.name ? JSON.parse(window.top.name) : null
+			if (data !== null) {
+				var trie =  buildTrie( JSON.parse( window.top.name ) );
+			} 
+		</script>
 				
   </div> 
    
