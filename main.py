@@ -334,8 +334,8 @@ class UserNames(db.Model):
 ##
 # Implementation note: 
 # --------------------
-# The 
-# 
+# The application uses memcache to minimize the number 
+# of reads from the datastore
 ##
 		
 ##  
@@ -370,8 +370,6 @@ def cache_user_group(user, update = False):
 	list_of_users_groups = memcache.get(user_group_key)
 	if list_of_users_groups is None or update: 
 		list_of_users_groups = UserGroup.all().ancestor(group_DB_rootkey()).filter("groupKeys =",user.key()).fetch(10)
-		# REFACTOR DELETE
-		logging.warning("cache_user_group, update %s, %s"%(user_group_key, list_of_users_groups))
 		memcache.set(user_group_key, list_of_users_groups)
 	return list_of_users_groups
 		
