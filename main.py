@@ -514,12 +514,14 @@ class MainPage(BaseHandler):
 						numSentMsgs = len(self.outbox),\
 						msgs = self.inbox[:10],\
 						user = self.user,\
+						pageNum = '0',\
 						data = self.triedata)
 		else: 
 			self.render("summaryPanel.html",\
 						numMsgs = len(self.inbox),\
 						numSentMsgs = len(self.outbox),\
 						msgs = self.inbox[:10],\
+						pageNum = '0',\
 						user = self.user)
 
 	##
@@ -529,33 +531,66 @@ class MainPage(BaseHandler):
 	# existing user logs in. The application doesn't 
 	# have a separate login URL. Rather, the signin 
 	# panel is on the front page and collapses once 
-	# the user has logged in
+	# the user has logged in. 
+	# 
+	# The front page can also receive a post request
+	# when the user wants to navigate to newer/older
+	# messages. It's easy to distinguish between the 
+	# two cases as only a logged in user can navigate
+	# messages
 	##  
 	
 	def post(self):
 
-		input_username = self.request.get('username')
-		input_password = self.request.get('password')
+		if not self.user: 
 	
-		##
-		# Implementation note: 
-		# --------------------
-		# db_login returns the user id and the empty string 
-		# if the password validates, the user and the msg 
-		# "Username and password don't match" if the user 
-		# was found but the password doesn't validate, and 
-		# "Invalid login" otherwise
-		##
-		user, pw_msg = user_DB.db_login(input_username,input_password)
+			input_username = self.request.get('username')
+			input_password = self.request.get('password')
 		
-		if user and pw_msg == '': 
-			self.handler_login(user)
-			self.redirect("/")
-		else:
-			self.render('base.html',\
-					name_provided = input_username,\
-					password_error = pw_msg) 
-		
+			##
+			# Implementation note: 
+			# --------------------
+			# db_login returns the user id and the empty string 
+			# if the password validates, the user and the msg 
+			# "Username and password don't match" if the user 
+			# was found but the password doesn't validate, and 
+			# "Invalid login" otherwise
+			##
+			user, pw_msg = user_DB.db_login(input_username,input_password)
+			
+			if user and pw_msg == '': 
+				self.handler_login(user)
+				self.redirect("/")
+			else:
+				self.render('base.html',\
+						name_provided = input_username,\
+						password_error = pw_msg) 
+		else: 
+			pageNum = int(self.request.get('hiddenPageNum'))
+			selectedAction = self.request.get('selectedAction')
+			
+			logging.warning("hiddenPageNum, selectedAction = %s, %s"%(pageNum, selectedAction))
+			
+			
+			if selectedAction == 'Older': 
+				if (pageNum + 1) * 10 < len(self.inbox): 
+					pageNum += 1 
+			else:  				# selected action is 'Newer' 
+				if (pageNum - 1) >= 0: 
+					pageNum -= 1
+			startIndex = pageNum * 10 
+			endIndex = startIndex + 10
+			
+			
+			self.render("summaryPanel.html",\
+						numMsgs = len(self.inbox),\
+						numSentMsgs = len(self.outbox),\
+						msgs = self.inbox[startIndex:endIndex],\
+						user = self.user,\
+						pageNum = str(pageNum))
+			
+			
+			
 ##
 # Class: SentPage
 # ---------------
@@ -573,8 +608,36 @@ class SentPage(BaseHandler):
 						numMsgs = len(self.inbox),\
 						numSentMsgs = len(self.outbox),\
 						msgs = self.outbox,\
-						user = self.user)
-	
+						user = self.user,\
+						pageNum = '0')
+	def post(self):
+
+		if not self.user: 
+			self.error(400)
+			return 
+		
+		else: 
+			pageNum = int(self.request.get('hiddenPageNum'))
+			selectedAction = self.request.get('selectedAction')
+			
+			
+			if selectedAction == 'Older': 
+				if (pageNum + 1) * 10 < len(self.outbox): 
+					pageNum += 1 
+			else:  				# selected action is 'Newer' 
+				if (pageNum - 1) >= 0: 
+					pageNum -= 1
+			startIndex = pageNum * 10 
+			endIndex = startIndex + 10
+			
+			
+			self.render("summaryPanel.html",\
+						numMsgs = len(self.inbox),\
+						numSentMsgs = len(self.outbox),\
+						msgs = self.outbox[startIndex:endIndex],\
+						user = self.user,\
+						pageNum = str(pageNum))
+			
 ##
 # Class: ComposeMessage
 # ---------------------
@@ -781,9 +844,9 @@ class ViewMessage(BaseHandler):
 	
 	def post(self, path): 
 		
-		selectedAction = self.request.get("selectedAction")
-		msgAuthor = self.request.get("msgAuthor")
-		msgSubject = self.request.get("msgSubject")
+		selectedAction = self.request.get('selectedAction')
+		msgAuthor = self.request.get('msgAuthor')
+		msgSubject = self.request.get('msgSubject')
 		
 	
 		msg = Message.db_by_id(int(path[1:]))
@@ -823,9 +886,9 @@ class ViewGroup(BaseHandler):
 	
 	def post(self): 
 		
-		groupsUserBelongsTo = cache_user_group(self.user);
-		input_groupname = self.request.get("groupname"); 
-		selected_action = self.request.get("selectedAction"); 		
+		groupsUserBelongsTo = cache_user_group(self.user)
+		input_groupname = self.request.get("groupname")
+		selected_action = self.request.get("selectedAction") 		
 		
 		
 		error_msg = ""

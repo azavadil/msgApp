@@ -27,6 +27,7 @@
 
 
 {% block content %}
+	<script type="text/javascript" src="\static\js\postFromButton.js"></script>
 	<div class="row")>
   		<div class="col-lg-10"> 
   
@@ -34,8 +35,8 @@
   	 			<div class="panel-heading">
     				<h3 class="panel-title">Messages</h3>
 						<ul class="pager">
-						  <li class="previous"><a href="#">&larr; Newer</a></li>
-						  <li class="next"><a href="#">Older &rarr;</a></li>
+						  <li class="previous"><a href="#" onclick ="post_to_url_short('Newer')">&larr; Newer</a></li>
+						  <li class="next"><a href="#" onclick ="post_to_url_short('Older')">Older &rarr;</a></li>
 						</ul>
   				</div>
 			
@@ -72,6 +73,8 @@
 		
 		</div>  
 	</div> 
+	
+	<input type="hidden" id = "hiddenPageNum" name="hiddenPageNum" value={{ pageNum }} />
 	
 	{% if data %}
 		<script type="text/javascript">
