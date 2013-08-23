@@ -1,7 +1,7 @@
 Implementation notes
 ===================
-Model architecture
-------------------
+Application outline
+-------------------
 In implementating a messaging system I thought about how I would build a messaging system without a computer. If I was providing a secure service where users could call in to get messages and leave messages for other users I would need the following: 
 
 1. A list of users and their passwords ("User File")
@@ -13,7 +13,20 @@ With the above tools, one can envision how the service would work. When a user c
 
 One advantage of the system is only one copy of each message is retained avoiding duplication. Global and group distributions are easy as they only require adding the message ID to the message file of the specified users.   
 
-I used the above inventory to guide my implementation. The database models have the following relationship to the above items. 
+I used the above inventory to guide my implementation. 
+
+Application logic
+-----------------
+The application logic is contained in the file [main.py](https://github.com/azavadil/msgApp/blob/master/main.py). Following the outline above, when a user arrives at the site the application checks to see if the user is logged in. If not, the user has the option of signing into their account or creating a new account. When the user logs in a secure cookie is set which can subsequently be used to to validate their identity. Upon login, an inbox of the user's ten most recent messages is displayed. The user can click on any of the listed messages listed in the inbox to view the message content. 
+
+The user also has the option to send messages to other users on the system. When a user sends a message, two things happen. The message is stored to the Message database and the message ID (i.e. the message's datastore key) is added to the recipient/recipeints message lists.
+
+The structure addresses the specifications of the problem. For example, sending a global broadcast of the message results in a single message being saved to the datastore and the message ID (i.e. the message's datastore key) being added to each user's message list. Similarly, when a message is sent to a group, the message is saved to the datastore and the message ID is added to the message list of group members. This ensures that the message is received only by users who are members of the group at the time the message was sent. 
+
+
+Database Models
+---------------
+The database models have the following relationship to the outline items. 
 
 ####User File => user_DB model: store user names, passwords, and link to a list of the user's messages.
 @property user_name:		a unique string representing the user's name  
@@ -55,7 +68,7 @@ My initial approach was to build a trie on the client side to generate autocompl
 
 I initially thought I could build a trie instance on the server side and then transmiting the trie to the client. My thinking was I would reduce the amount of data to be sent to the client by encoding the user names as a trie. In order to avoid blocking the application, I set up a task queue to manage retrieving the trie from the datastore, unpickling the stored data, putting the new name into the trie, pickling the updated trie, and putting the updated trie back in the datastore. Unfortunately, it was only after I had gone partway down that path that I realized that I wouldn't be able to reconstitute a trie instance in the browser. 
 
-Having been blocked building the trie on the server side, I switched to a naive implementation where the program transmits the entire list of names to the client. The broswer then builds an instance of a trie. To minimize space, we take advantage of that fact that user names are limited to a 62 character alphabet (uppercase/lowercase letters and the digits 0-9). There are two problems with this implementation.  First, the bandwidth required to transmit the entire list of names. In addition, the browser can only store the list of names in memory, not the trie instance. That means that the trie has to be rebuilt each time we leave and come back to the message composition page.
+Having been blocked building the trie on the server side, I switched to a naive implementation where the program transmits the entire list of names to the client. The broswer then builds an instance of a trie. To minimize space, we take advantage of that fact that user names are limited to a 62 character alphabet (uppercase/lowercase letters and the digits 0-9). The trie code can be [found here](https://github.com/azavadil/msgApp/blob/master/static/js/Trie.js). There are two problems with this implementation.  First, the bandwidth required to transmit the entire list of names. In addition, the browser can only store the list of names in memory, not the trie instance. That means that the trie has to be rebuilt each time we leave and come back to the message composition page.
 
 Knowing what I know now, there are two approaches to autocomplete that I'd explore for a production version.  
 
