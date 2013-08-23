@@ -37,7 +37,7 @@ def render_str(template, **params):
 
 
 ##
-# Implemenation note: 
+# Implementation note: 
 # -------------------
 # This section includes the functions used for managing 
 # a secure password system. User passwords are stored
@@ -85,7 +85,7 @@ def check_secure_val(h):
 		
 		
 ##
-# Implemenation note: 
+# Implementation note: 
 # -------------------
 # The functions in this section are user for validating 
 # the format of user names, passwords, and groupnames. 
@@ -135,7 +135,7 @@ def valid_groupname(groupname):
 	
 					
 ##
-# Implemenation note: 
+# Implementation note: 
 # -------------------
 # The app uses 5 database models. 
 #
@@ -489,7 +489,7 @@ class MainPage(BaseHandler):
 	def get(self):
 	
 		##
-		# Implemenation note: 
+		# Implementation note: 
 		# -------------------
 		# There are three cases. The control flow is such that
 		# self.triedata will be populated with data only one time.
@@ -519,7 +519,7 @@ class MainPage(BaseHandler):
 						user = self.user)
 
 	##
-	# Implemenation note: 
+	# Implementation note: 
 	# -------------------
 	# The front page receives a post request when an 
 	# existing user logs in. The application doesn't 
@@ -1060,7 +1060,7 @@ class SignupPage(BaseHandler):
 class Register(SignupPage):
 
 	## 
-	# Implemenation note: 
+	# Implementation note: 
 	# -------------------
 	# Creation of a new user is kept separate from 
 	# the creation of user's message file and insertion
@@ -1129,7 +1129,7 @@ class LogoutPage(BaseHandler):
 		
 		
 ##
-# Implemenation note: 
+# Implementation note: 
 # -------------------
 # anything that is in paratheses gets passed in to 
 # the handler the regular expression matches ()		
