@@ -68,8 +68,8 @@ def hash_str(s):
 def make_secure_val(s):
     """make secure value is used to generate outgoing keys
     to be sent and stored by the browser"""
-    ##s is the string
-    ##hash_str(s) the is hashed value of the string
+    # s is the string
+    # hash_str(s) the is hashed value of the string
     return '%s|%s' %(s, hash_str(s))
 
 def check_secure_val(h):
@@ -206,10 +206,9 @@ class user_DB(db.Model):
 			return None, "Invalid login"
 
 ##
-# Implementation note: 
-# --------------------
-# Class: Message
-# 
+# Function: message_DB_rootkey 
+# ----------------------------
+# Generate a default parent key
 ##
 	
 def message_DB_rootkey(group = 'default'):
@@ -362,8 +361,6 @@ def cache_user_group(user, update = False):
 		param userID: string that's used as database key
         param update: specifies whether the cache should be overwritten
 	"""
-	# REFACTOR DELETE CTRL-F LOGGING
-	logging.warning("cache_user_group called")
 	
 	user_group_key = "group_" + str(user.key().id())
 	list_of_users_groups = memcache.get(user_group_key)
@@ -770,7 +767,7 @@ class ComposeMessage(BaseHandler):
 						subject = msg_subject,\
 						body = msg_body,\
 						numMsgs = len(self.inbox),\
-						numSentMsgs = len(self.outbox).\
+						numSentMsgs = len(self.outbox),\
 						fallback_error=error)
 
 
@@ -865,7 +862,7 @@ class ViewMessage(BaseHandler):
 ##
 # Class: View Group
 # -----------------
-# 
+# ViewGroup manages the CRUD actions for user groups. 
 ## 				
 class ViewGroup(BaseHandler):
 	def get(self):
@@ -984,7 +981,7 @@ class ViewGroup(BaseHandler):
 			else: 
 				## we have a problem here in that we need to update the cache for all members of the group
 				qry.delete()
-				##[REFACTOR. this needs to be tested]  
+				## REFACTOR. this needs to be tested  
 				for userKey in qry.groupKeys: 
 					userEntity = user_DB.get(userKey)
 					cache_user_group(userEntity, update=True)
@@ -1111,7 +1108,7 @@ class Register(SignupPage):
 		UserNames.addName(userEntity.user_name)
 		
 		self.handler_login(userEntity)
-		## [NTD: uncomment] cache_user(user.key().id())
+		## REFACTOR: cache_user(user.key().id())
 		self.redirect("/")
 
 		
