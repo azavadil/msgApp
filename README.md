@@ -2,7 +2,7 @@ Implementation notes
 ===================
 Model architecture
 ------------------
-In implemenating a messaging system I thought about how I would build a messaging system without a computer. If I was providing a secure service where users could call in to get messages and leave messages for other users I would need the following: 
+In implementating a messaging system I thought about how I would build a messaging system without a computer. If I was providing a secure service where users could call in to get messages and leave messages for other users I would need the following: 
 
 1. A list of users and their passwords ("User File")
 2. A list of the messages IDs for that user ("Msg List") indicating which messages that user receives 
@@ -13,7 +13,7 @@ With the above tools, one can envision how the service would work. When a user c
 
 One advantage of the system is only one copy of each message is retained avoiding duplication. Global and group distributions are easy as they only require adding the message ID to the message file of the specified users.   
 
-I used the above inventory to guide my implemenation. The database models have the following relationship to the above items. 
+I used the above inventory to guide my implementation. The database models have the following relationship to the above items. 
 
 ####User File => user_DB model: store user names, passwords, and link to a list of the user's messages.
 @property user_name:		a unique string representing the user's name  
@@ -42,7 +42,7 @@ The user_DB model has a standard user authentication system. Passwords are salte
 ####Implementation note: 
 The recipientKeys property isn't necessary to make the program work. However, the list of recipientKeys is maintained to guard against malicious users. Before sending the HTTP response the application validates that the logged in user is an authorized recipient of the message (i.e. recipientKeys contains the user's key). Without this safeguard a malicious user could fabricate message IDs and submit a request for a message they are not authorized to receive. 
 
-####Implemenation note: 
+####Implementation note: 
 Global and group distributions are straightforward. The recipient 'all' sends the message globally. A  group name as recipient sends the message to the members of the group. 
 
 Memcache
