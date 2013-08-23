@@ -22,9 +22,9 @@ handlers:
   upload: static/js/(.*\.js)
 
 - url: /test.*
-  script: gaeunit.py
+  script: gaeunit.application
   
-- url: .*
+- url: /.*
   script: main.app
 
 libraries:
