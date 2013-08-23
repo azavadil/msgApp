@@ -36,10 +36,16 @@ def render_str(template, **params):
 	return t.render(params)
 
 
-########## PASSWORD STORAGE ##########
+##
+# Implemenation note: 
+# -------------------
+# This section includes the functions used for managing 
+# a secure password system. User passwords are stored
+# as salted, hashed values in the database.  
+##
 
-## put the secret into another module and change to a unique 
-## secret for your app
+# put the secret into another module and change to a unique 
+# secret for your app
 
 SECRET = hashsecret.getSecret()
 
@@ -78,7 +84,20 @@ def check_secure_val(h):
         return val
 		
 		
-########## PASSWORD VERIFICATION ##########		
+##
+# Implemenation note: 
+# -------------------
+# The functions in this section are user for validating 
+# the format of user names, passwords, and groupnames. 
+# User names must be composed of lowercase and uppercase
+# letters and the digits 1-9. 
+# 
+# Passwords must have 1 uppercase letter, 1 lowercase letter
+# and 1 digit. 
+# 
+# Groupnames must be composes of lowercase and uppercase letters,
+# the digits 1-9, hyphens, and underscores. 
+##
 
 def escape_html(input_string):
     return cgi.escape(input_string,quote=True)
@@ -114,32 +133,44 @@ def valid_groupname(groupname):
 		return True
 	return False
 	
-
-		
 					
 ##
 # Implemenation note: 
 # -------------------
 # The app uses 5 database models. 
 #
-#
+# user_DB: 		models a single user. Used for managing 
+#				a secure user login system
+# Messages: 	models a single message
+# UserGroup: 	models a group of users. 
+# MsgFile: 		models a relationship between a user and the 	
+#				user's messages. Each MsgFile belongs to one user
+# UserNames: 	models a list of all the users. Used to rapidly provide
+#				a name list for transmital to client to build the 
+#				an autocompletion trie
 ##
 
 def users_DB_rootkey(group = 'default'):
 	""" 	
-		parent keys are used to ensure all users are in the same entity group. 
-		The parent key is in the form kind/key_name (e.g. user_DB/'default') 
+		user_DB_rootkey returns a default parent key for 
+		the user_DB class. Parent keys are used to organize 
+		all user_DB entities into a single entity group. 
+		The parent key is in the form kind/key_name 
+		(e.g. user_DB/'default').  
 		Child keys are in the format kind/parent/ID 
 		(e.g. user_DB/'default'/XXXXXX)
 		
-		There's an equivalent format user_DB(key_name=group) 
+		There's an equivalent syntax user_DB(key_name=group) 
 	"""
 	return db.Key.from_path('user_DB', group)	
     
-
+##
+# class: user_DB
+# --------------
+# The user_DB model models a single user.  
+##
+	
 class user_DB(db.Model):
-	##required = True, will raise an exception if we try to create 
-	##content without a title
 	user_name = db.StringProperty(required = True)
 	pw_hash = db.StringProperty(required = True, indexed = False)
 	msg_file = db.ReferenceProperty(required = True, indexed = False)
@@ -178,16 +209,15 @@ class user_DB(db.Model):
 ##
 # Implementation note: 
 # --------------------
-# class: Message
+# Class: Message
 # 
 ##
 	
 def message_DB_rootkey(group = 'default'):
 	""" 
-		message_DB_rootkey takes a string and returns a key. 
-		The returned key is used as the parent key for the entire 
-		Message class. For this class a parent key isn't strictly 
-		necessary except to ensure consistency. 
+		message_DB_rootkey returns a default parent key. 
+		parent keys are used to organize all Messages 
+		into a single entity group. 
 	"""
 	return db.Key.from_path('Message', group)
 		
@@ -217,15 +247,14 @@ class Message(db.Model):
 # Function: group_DB_rootkey
 # --------------------------
 # Generates default key to serve as parent key for 
-# UserGroup entity model 
+# the UserGroup entity model 
 ##
 
 def group_DB_rootkey(group = 'default'):
 	""" 
-		group_DB_rootkey takes a string and returns a key. 
-		The returned key is used as the parent key for the entire 
-		Message class. For this class a parent key isn't strictly 
-		necessary except to ensure consistency. 
+		group_DB_rootkey returns a default parent key. 
+		parent keys are used to organize all UserGroups 
+		entities into a single entity group. 
 	"""
 	return db.Key.from_path('UserGroup', group)
 
@@ -249,10 +278,13 @@ def usermsg_DB_rootkey(group = 'default'):
 	return db.Key.from_path('MsgFile', group)
 		
 ##
-# Class: UserMsg
-# -------
-#
-#
+# Class: MsgFile
+# --------------
+# The MsgFile class models a one-to-one relationship with 
+# a user. Each user has a message file that is estalished 
+# when a user registered for the application. The relationship
+# is established by storing the MsgFile key as ReferenceProperty
+# on the user_DB entity for that user. 
 ##
 
 class MsgFile(db.Model):
@@ -302,11 +334,14 @@ class UserNames(db.Model):
 ##
 # Implementation note: 
 # --------------------
+# The 
 # 
-# CACHING FUNCTIONS ##########		
 ##
 		
-##  cache_user is used for our user tracking system
+##  
+# Function: cache_user 
+# --------------------
+# is used for our user tracking system
 ##  (e.g. when the front page is generated or we generate
 ##   a user page) 
 
@@ -329,14 +364,14 @@ def cache_user_group(user, update = False):
         param update: specifies whether the cache should be overwritten
 	"""
 	# REFACTOR DELETE CTRL-F LOGGING
-	logging.error("cache_user_group called")
+	logging.warning("cache_user_group called")
 	
 	user_group_key = "group_" + str(user.key().id())
 	list_of_users_groups = memcache.get(user_group_key)
 	if list_of_users_groups is None or update: 
 		list_of_users_groups = UserGroup.all().ancestor(group_DB_rootkey()).filter("groupKeys =",user.key()).fetch(10)
 		# REFACTOR DELETE
-		logging.error("cache_user_group, update %s, %s"%(user_group_key, list_of_users_groups))
+		logging.warning("cache_user_group, update %s, %s"%(user_group_key, list_of_users_groups))
 		memcache.set(user_group_key, list_of_users_groups)
 	return list_of_users_groups
 		
@@ -358,7 +393,8 @@ def cache_group(groupname, update = False):
 # ------------------
 # BaseHandler is the main request handler that other 
 # handlers inherit from. We put the convience methods 
-# in baseHandler
+# in BaseHandler so other handlers inherit the convience
+# functions. 
 ## 
 							
 class BaseHandler(webapp2.RequestHandler):
@@ -458,8 +494,6 @@ class BaseHandler(webapp2.RequestHandler):
 class MainPage(BaseHandler):
 	def get(self):
 	
-
-	
 		##
 		# Implemenation note: 
 		# -------------------
@@ -487,14 +521,18 @@ class MainPage(BaseHandler):
 						numSentMsgs = len(self.outbox),\
 						msgs = self.inbox[:10],\
 						user = self.user)
-		
+
+	##
+	# Implemenation note: 
+	# -------------------
+	# The front page receives a post request when an 
+	# existing user logs in. The application doesn't 
+	# have a separate login URL. Rather, the signin 
+	# panel is on the front page and collapses once 
+	# the user has logged in
+	##  
 	
 	def post(self):
-		""" we have two cases where a form can be posted from the MainPage. 
-		    If the user has not logged in then we post login information. 
-			The app can also post from the MainPage when the user is 
-			making, joining, or leaving a group 
-		"""
 
 		input_username = self.request.get('username')
 		input_password = self.request.get('password')
@@ -518,6 +556,12 @@ class MainPage(BaseHandler):
 					name_provided = input_username,\
 					password_error = pw_msg) 
 		
+##
+# Class: SentPage
+# ---------------
+# SentPage manages displaying the user's outbox
+##		
+		
 class SentPage(BaseHandler):
 	def get(self):
 		
@@ -530,13 +574,11 @@ class SentPage(BaseHandler):
 						numSentMsgs = len(self.outbox),\
 						msgs = self.outbox,\
 						user = self.user)
-					
-
 	
 ##
 # Class: ComposeMessage
 # ---------------------
-# ComposeMessage handles creation and sending of messages. 
+# ComposeMessage manages the creation and sending of messages. 
 # 
 ##
 				
@@ -547,10 +589,6 @@ class ComposeMessage(BaseHandler):
 			return
 		
 		
-		qry = UserNames.all().get()
-		nameList = qry.userNameList
-		jsonNameList = json.dumps(nameList)
-		logging.warning("jsonData %s"%jsonNameList)
 		##
 		# Implementation note: 
 		# -------------------
@@ -568,26 +606,23 @@ class ComposeMessage(BaseHandler):
 				subject = "RE: " + self.request.get('msgSubject'))
 		else: 
 			
-			## REFACTOR qry the database for a list of user names
-			## convert to json and pass to our template
 			self.render("composeMsg.html",\
 				numMsgs = len(self.inbox),\
-				numSentMsgs = len(self.outbox),\
-				data = jsonNameList)
+				numSentMsgs = len(self.outbox))
 		
 	def post(self,path):
 		if not self.user:
 			self.error(400)
 			return
 		
-		# retreive the field named "subject" and 
-		# the field named "content" from the form submission
+		# retreive the field named "subject" and the field 
+		# named "content" from the form submission
 		msg_recipient = self.request.get("recipient")
 		msg_subject = self.request.get("subject")
 		msg_body = self.request.get("body")
 		
 		
-		## check if the message is a global broadcast
+		# check if the message is a global broadcast
 		if msg_recipient.lower() == "all": 
 			## check
 			recipients = db.Query(user_DB)
@@ -602,7 +637,6 @@ class ComposeMessage(BaseHandler):
 			to_store.put()
 			
 			for recipient in recipients: 
-				logging.error("compose message = %s"%recipient.user_name)
 				curr_file = recipient.msg_file
 				curr_file.messageKeys.append(to_store.key())
 				curr_file.unreadKeys.append(to_store.key())
@@ -617,8 +651,8 @@ class ComposeMessage(BaseHandler):
 			
 		group_qry = UserGroup.all().filter("groupname =", msg_recipient).get()	
 		if group_qry: 
-			##create a new Message entity
-	
+			
+			# create a new Message entity
 			to_store = Message(parent = message_DB_rootkey(),\
 							author = self.user.user_name,\
 							authorID = self.user.key().id(),\
@@ -642,7 +676,6 @@ class ComposeMessage(BaseHandler):
 		
 		##Query the database for the recipient
 		recipientEntity = user_DB.db_by_name(msg_recipient) 
-		
 		
 		if recipientEntity:
 			##create a new Message entity
@@ -685,7 +718,7 @@ class ComposeMessage(BaseHandler):
 ##
 # Class: ViewMessage
 # ------------------
-# 
+# ViewMessage manages the display of a single message
 ##
 				
 class ViewMessage(BaseHandler):
@@ -782,11 +815,7 @@ class ViewGroup(BaseHandler):
 			return
 		
 		groupsUserBelongsTo = cache_user_group(self.user); 
-		
-		# REFACTOR: DELETE
-		temp = UserGroup.all().filter("groupIDs = ", self.user.key().id()).get()
-		logging.error("ViewGroup/Get groups =%s, %s"%(groupsUserBelongsTo,temp))
-		
+			
 		self.render("viewGroup.html",\
 				groups = groupsUserBelongsTo,\
 				numMsgs = len(self.inbox),\
@@ -917,13 +946,13 @@ class SignupPage(BaseHandler):
 	
 	def post(self):
 		
-		## check if the user is logged in. If the user is logged in then we 
-		## shouldn't be on this page 
+		# check if the user is logged in. If the user is logged in then we 
+		# shouldn't be on this page 
 		if self.user:
 			self.error(400)
 			return
 	
-		##store what the user entered
+		# store what the user entered
 		self.input_username = self.request.get('username')
 		self.input_password = self.request.get('pwd1')
 		self.password_verify = self.request.get('pwd2')
@@ -933,8 +962,7 @@ class SignupPage(BaseHandler):
 		error_msg = "" 
 		have_error = False
 		
-		##test for validity
-		##test for valid user_name
+		# test for valid user_name
 		if not valid_username(self.input_username):
 			error_msg += "That's not a valid username"
 			have_error = True
@@ -959,9 +987,15 @@ class SignupPage(BaseHandler):
 		"""not implemented in signupPage. Overwriten in Register below"""
 		raise NotImplementedError
 
-## Register's purpose is to extend the signupPage class to include an additional check 
-## of whether a user exists before adding a user to the database. Register is implemented
-## by inheriting from signupPage and overwriting the done() method. 
+##
+# Class: Register
+# ---------------
+# Register extends the signupPage class to include an 
+# additional check of whether a user exists before adding 
+# a user to the database. Register is implemented by 
+# inheriting from signupPage and overwriting the done() 
+# method. 
+##
 			
 class Register(SignupPage):
 
@@ -997,19 +1031,25 @@ class Register(SignupPage):
 ##
 # Class: LogoutPage
 # -----------------
-# 
+# LogoutPage manages user logout. Simple class
+# that calls the handler_logout() method (defined 
+# in the BaseHanlder class and redirects to the 
+# home page 
 ## 					
 class LogoutPage(BaseHandler):
 	
     def get(self):
 		self.handler_logout()
-		##send user to the page they came from
 		self.redirect("/")
 		
 		
 		
-##anything that is in paratheses gets passed in to the handler
-##the regular expression matches ()		
+##
+# Implemenation note: 
+# -------------------
+# anything that is in paratheses gets passed in to 
+# the handler the regular expression matches ()		
+##
 
 MSGKEY_RE = r'(/(?:[a-zA-Z0-9_-]+)*)'
 
