@@ -173,7 +173,7 @@ def users_DB_rootkey(group = 'default'):
 class user_DB(db.Model):
 	user_name = db.StringProperty(required = True)
 	pw_hash = db.StringProperty(required = True, indexed = False)
-	msg_file = db.ReferenceProperty(required = True, indexed = False)
+	msg_file = db.ReferenceProperty(required = False, indexed = False)
 	##auto_now_add sets created to be the current time
 	created = db.DateTimeProperty(auto_now_add = True)
 	last_modified = db.DateTimeProperty(auto_now = True)
@@ -184,18 +184,17 @@ class user_DB(db.Model):
 
 	@classmethod
 	def db_by_name(cls, name):
-		u = user_DB.all().filter('user_name =', name).get()
+		u = user_DB.all().ancestor(users_DB_rootkey()).filter('user_name =', name).get()
 		return u
 		
 	@classmethod   
-	def register(cls, name, pw, msg_file_key):
+	def register(cls, name, pw):
 		current_pw_hash = make_pw_hash(name, pw)
 		
 		return user_DB(parent = users_DB_rootkey(),\
             				user_name = name,\
-							pw_hash = current_pw_hash,\
-							msg_file = msg_file_key)
-
+							pw_hash = current_pw_hash)
+								
 	@classmethod
 	def db_login(cls, name, pw):
 		u = cls.db_by_name(name)	
@@ -293,7 +292,7 @@ class MsgFile(db.Model):
 	sentKeys = db.ListProperty(db.Key, required = True, indexed = False)
 	
 	@classmethod
-	def register(cls): 
+	def createMsgFile(cls): 
 		msgFile = MsgFile(parent = usermsg_DB_rootkey())
 		msgFile.put()
 		return msgFile
@@ -566,9 +565,6 @@ class MainPage(BaseHandler):
 		else: 
 			pageNum = int(self.request.get('hiddenPageNum'))
 			selectedAction = self.request.get('selectedAction')
-			
-			logging.warning("hiddenPageNum, selectedAction = %s, %s"%(pageNum, selectedAction))
-			
 			
 			if selectedAction == 'Older': 
 				if (pageNum + 1) * 10 < len(self.inbox): 
@@ -1060,13 +1056,12 @@ class SignupPage(BaseHandler):
 			
 class Register(SignupPage):
 
-    def done(self):
-    ##make sure the user doesn't already exist
-    ##username in self.username is a field in the signup page. 
-	## REFACTOR GROUP NAME / NAME COLLISIONS
+	@db.transactional()
+	def registerUser(self):
+		# make sure the user doesn't already exist
+		# username in self.username is a field in the signup page. 
 		user = user_DB.db_by_name(self.input_username)
-		groupname = UserGroup.db_by_name(self.input_username)
-		if user or groupname:
+		if user:
 			msg = 'That user already exists.'
 			self.render('signupPage.html', fallback_error = msg, isSignupPage = True)
 		else:
@@ -1079,14 +1074,29 @@ class Register(SignupPage):
 			# MsgFile and the user
 			## 
 			
-			newMsgFile = MsgFile.register()
-			user = user_DB.register(self.input_username, self.input_password, newMsgFile.key())
+			user = user_DB.register(self.input_username, self.input_password)
 			user.put()
-			UserNames.addName(self.input_username)
-			
-			self.handler_login(user)
-			## [NTD: uncomment] cache_user(user.key().id())
-			self.redirect("/")
+			return user
+	
+	def done(self):
+		
+		##
+		# Implementation note: 
+		# --------------------
+		# We create the user separately from the other 
+		# actions so we can add the user to the user_DB 
+		# as a transaction
+		## 
+		userEntity = self.registerUser()
+		newMsgFile = MsgFile.createMsgFile()
+		userEntity.msg_file = newMsgFile
+		userEntity.put()
+		
+		UserNames.addName(userEntity.user_name)
+		
+		self.handler_login(userEntity)
+		## [NTD: uncomment] cache_user(user.key().id())
+		self.redirect("/")
 
 		
 ##
