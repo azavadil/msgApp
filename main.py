@@ -351,7 +351,7 @@ def cache_user(userID, update = False):
 	"""
 	user_result = memcache.get(userID)
 	if user_result is None or update:
-		logging.error("Cache_user - DB hit")
+		logging.warning("Cache_user - DB hit")
 		user_result = user_DB.db_by_id(int(userID))	
 		memcache.set(userID, user_result)
 	return user_result
@@ -468,7 +468,6 @@ class BaseHandler(webapp2.RequestHandler):
 		##
 		self.triedata = None
 		flag = self.read_secure_cookie('trie_flag')
-		logging.warning("Flag = %s"%flag)
 		if flag == 'True': 
 			qry = UserNames.all().get()
 			if qry: 
@@ -972,7 +971,6 @@ class ViewGroup(BaseHandler):
 			# to be self.user.key().
 			##
 			elif qry.groupAuthor.key() != self.user.key(): 
-				logging.error("delete group %s, %s"%(qry.groupAuthor, self.user.key())) 
 				error_msg = "Only group author can delete group"
 				self.render("viewGroup.html",\
 							user_input_groupname = input_groupname,\
