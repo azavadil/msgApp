@@ -1,7 +1,7 @@
 Implemenation notes
-
+===================
 Model architecture
-
+------------------
 In implemenating a messaging system I thought about how I would build a messaging system without a computer. If I was going to provide a secure service where users could call in to get messages or leave messages for other users I would need the following: 
 
 1. A list of users and their passwords ("User File")
@@ -9,14 +9,13 @@ In implemenating a messaging system I thought about how I would build a messagin
 3. A file of the messages, each with a unique ID ("Message File")
 4. A list of groups, each group listing the members of their group. ("Group List") 
 
-With the above tools, one can envision how the system would work. When a user calls in, the service validates their identity with the User File. The service pulls up the Msg List for that user and uses the Msg List to all messages addressed to the user from the Message File. For group or global distributions, the message ID gets added to each group member's message file.  
+With the above tools, one can envision how the system would work. When a user calls in, the service validates their identity with the User File. The service pulls up the Msg List (for that user) and finds all messages addressed to the user. For group or global distributions, the message ID gets added to each group member's message file.  
 
-One advantage of the system is only one copy of each message needs to be maintained avoiding duplication. Messages group and global distributions are easy as they only require adding the message ID to the message file for the respective user.   
+One advantage of the system is only one copy of each message needs to be maintained avoiding duplication. Global and group distributions are easy as they only require adding the message ID to the message file of specified user.   
 
 I used the above inventory to guide my implemenation. The database models have the following relationship to the above items. 
 
-user_DB model: stores user names, passwords, and link to a list of the users messages.
---------------------------------------------------------------------------------------
+####user_DB model: stores user names, passwords, and link to a list of the users messages.
 @property user_name:		a unique string representing the user's name 
 @property pw_hash:	 		a string representing the salted, hashed value of the user's password
 @property msg_file: 		a pointer to the database entity which tracks the user's messages 
@@ -25,22 +24,19 @@ user_DB model: stores user names, passwords, and link to a list of the users mes
 The user_DB model has a standard user authentication system. Passwords are salted and hashed before being saved to the database. Each user also has a list of messages. The list of messages is modeled as a one-to-one relationship with the user. The one-to-one relationship is implemented by adding a ReferenceProperty to the user file. When a new user is created a blank message file is created as well and a link between the user and the message file is set.  
 
 
-Message model: represents a message sent on the system
--------------------------------------------------------
+####Message model: represents a message sent on the system
 @property author:  			a string representing the name of the message author
 @property authorID:  		an integer representing the unique ID of the message author
 @property subject:  		a string representing the message subject
 @property body: 	 		text representing the message body 
 @property recipientKeys:  	a list of keys representing authorized recipients of the message
 
-UserGroup: represents a group and the members of a group
--------------------------------------------------------
+####UserGroup: represents a group and the members of a group
 @property groupname:		a string representing the name of the group 
 @property groupKeys: 		a list of keys (i.e. pointers) representing the members of a group
 @property groupAuthor: 		a key (i.e. pointer) for the author of the group
 
-MsgFile model: list of messages for a single user
--------------------------------------------------
+####MsgFile model: list of messages for a single user
 @property messageKeys: 		list of pointers to messages addressed to user
 @property unreadKeys: 		list of pointers to messages addressed to user that user has not read
 @property sentKeys: 		list of pointers to messages sent by user
