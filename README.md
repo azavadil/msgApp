@@ -15,32 +15,42 @@ One advantage of the system is only one copy of each message needs to be maintai
 
 I used the above inventory to guide my implemenation. The database models have the following relationship to the above items. 
 
-####user_DB model: stores user names, passwords, and link to a list of the users messages.
-@property user_name:		a unique string representing the user's name 
-@property pw_hash:	 		a string representing the salted, hashed value of the user's password
-@property msg_file: 		a pointer to the database entity which tracks the user's messages 
-
-
+####user_DB model: store user names, passwords, and link to a list of the users messages.
+@property user_name:		a unique string representing the user's name  
+   
+@property pw_hash:	 		a string representing the salted, hashed value of the user's password  
+  
+@property msg_file: 		a pointer to the database entity which tracks the user's messages  
+    
 The user_DB model has a standard user authentication system. Passwords are salted and hashed before being saved to the database. Each user also has a list of messages. The list of messages is modeled as a one-to-one relationship with the user. The one-to-one relationship is implemented by adding a ReferenceProperty to the user file. When a new user is created a blank message file is created as well and a link between the user and the message file is set.  
 
 
 ####Message model: represents a message sent on the system
-@property author:  			a string representing the name of the message author
-@property authorID:  		an integer representing the unique ID of the message author
-@property subject:  		a string representing the message subject
-@property body: 	 		text representing the message body 
-@property recipientKeys:  	a list of keys representing authorized recipients of the message
+@property author:  			a string representing the name of the message author  
+
+@property authorID:  		an integer representing the unique ID of the message author  
+
+@property subject:  		a string representing the message subject  
+
+@property body: 	 		text representing the message body  
+ 
+@property recipientKeys:  	a list of keys representing authorized recipients of the message  
+
 
 ####UserGroup: represents a group and the members of a group
-@property groupname:		a string representing the name of the group 
-@property groupKeys: 		a list of keys (i.e. pointers) representing the members of a group
-@property groupAuthor: 		a key (i.e. pointer) for the author of the group
+@property groupname:		a string representing the name of the group  
+ 
+@property groupKeys: 		a list of keys (i.e. pointers) representing the members of a group  
+
+@property groupAuthor: 		a key (i.e. pointer) for the author of the group  
+
 
 ####MsgFile model: list of messages for a single user
-@property messageKeys: 		list of pointers to messages addressed to user
-@property unreadKeys: 		list of pointers to messages addressed to user that user has not read
-@property sentKeys: 		list of pointers to messages sent by user
- 
+@property messageKeys: 		list of pointers to messages addressed to user  
+
+@property unreadKeys: 		list of pointers to messages addressed to user that user has not read  
+
+@property sentKeys: 		list of pointers to messages sent by user  
 
 ####Implementation note: 
 recipientKeys isn't necessary to make the program work. The list of recipientKeys is maintained to guard against malicious users. Before sending the HTTP response the application validates that the logged in user is a recipient of the message. Without this safeguard a malicious user could fabricate message IDs and submit a request for a message they are not authorized to receive. 
