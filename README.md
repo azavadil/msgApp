@@ -17,9 +17,7 @@ I used the above inventory to guide my implemenation. The database models have t
 
 ####user_DB model: store user names, passwords, and link to a list of the users messages.
 @property user_name:		a unique string representing the user's name  
-   
 @property pw_hash:	 		a string representing the salted, hashed value of the user's password  
-  
 @property msg_file: 		a pointer to the database entity which tracks the user's messages  
     
 The user_DB model has a standard user authentication system. Passwords are salted and hashed before being saved to the database. Each user also has a list of messages. The list of messages is modeled as a one-to-one relationship with the user. The one-to-one relationship is implemented by adding a ReferenceProperty to the user file. When a new user is created a blank message file is created as well and a link between the user and the message file is set.  
