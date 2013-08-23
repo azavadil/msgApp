@@ -27,29 +27,21 @@ The user_DB model has a standard user authentication system. Passwords are salte
 
 ####Message model: represents a message sent on the system
 @property author:  			a string representing the name of the message author  
-
 @property authorID:  		an integer representing the unique ID of the message author  
-
 @property subject:  		a string representing the message subject  
-
 @property body: 	 		text representing the message body  
- 
 @property recipientKeys:  	a list of keys representing authorized recipients of the message  
 
 
 ####UserGroup: represents a group and the members of a group
 @property groupname:		a string representing the name of the group  
- 
 @property groupKeys: 		a list of keys (i.e. pointers) representing the members of a group  
-
 @property groupAuthor: 		a key (i.e. pointer) for the author of the group  
 
 
 ####MsgFile model: list of messages for a single user
 @property messageKeys: 		list of pointers to messages addressed to user  
-
 @property unreadKeys: 		list of pointers to messages addressed to user that user has not read  
-
 @property sentKeys: 		list of pointers to messages sent by user  
 
 ####Implementation note: 
