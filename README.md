@@ -1,4 +1,4 @@
-Implemenation notes
+Implementation notes
 ===================
 Model architecture
 ------------------
@@ -51,11 +51,11 @@ The application uses memcache to minimize reads from the datastore. User entitie
 
 Autocompletion:
 ---------------
-My initial thought was to build a trie on the client side to generate autocompletions. The motivation for that approach was speed. Instead of querying the server and waiting for a response, the brower would be able to provide instant autocompletion options as the user typed.  
+My initial approach was to build a trie on the client side to generate autocompletions. The motivation for that implementation was that it would be fast. With the trie in the browswer's memory, instead of querying the server and waiting for a response, the brower would be able to provide instant autocompletion options as the user typed.  
 
-As a first I approach, I considered building a trie on the server side and then transmiting the trie instance to the client. The motivation for that approach was to reduce the amount of data to sent to the client by encoding the user names as a trie. In order to avoid blocking the application, I set up a task queue to manage retrieving the trie from the datastore, unpickling the stored data, putting the new name into the trie, pickling the updated trie, and putting the updated trie back in the datastore. Unfortunately, it was only after I had gone partway down that path that I realized that I wouldn't be able to reconstitute a trie instance in the browser. 
+I initially thought I could build a trie instance on the server side and then transmiting the trie to the client. My thinking was I would reduce the amount of data to be sent to the client by encoding the user names as a trie. In order to avoid blocking the application, I set up a task queue to manage retrieving the trie from the datastore, unpickling the stored data, putting the new name into the trie, pickling the updated trie, and putting the updated trie back in the datastore. Unfortunately, it was only after I had gone partway down that path that I realized that I wouldn't be able to reconstitute a trie instance in the browser. 
 
-Having been blocked building the trie on the server side, I switched to a naive implementation where the program transmits the entire list of names to the client. The broswer then builds and instance of a trie. To minimize space, we take advantage of that fact that user names are limited to a 62 character alphabet (uppercase/lowercase letters and the digits 0-9). There are two problems with this implementation.  First, the bandwidth required to transmit the entire list of names. In addition, the browser can only store the list of names in memory, not the trie instance. That means that the trie has to be rebuilt each time we leave and come back to the message composition page.
+Having been blocked building the trie on the server side, I switched to a naive implementation where the program transmits the entire list of names to the client. The broswer then builds an instance of a trie. To minimize space, we take advantage of that fact that user names are limited to a 62 character alphabet (uppercase/lowercase letters and the digits 0-9). There are two problems with this implementation.  First, the bandwidth required to transmit the entire list of names. In addition, the browser can only store the list of names in memory, not the trie instance. That means that the trie has to be rebuilt each time we leave and come back to the message composition page.
 
 Knowing what I know now, there are two approaches to autocomplete that I'd explore for a production version.  
 
