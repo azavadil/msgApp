@@ -103,7 +103,7 @@ def escape_html(input_string):
     return cgi.escape(input_string,quote=True)
 
 def valid_username(username):
-    USER_RE = re.compile(r"^[a-zA-Z0-9]{3,20}$")
+    USER_RE = re.compile(r"^[a-zA-Z0-9]{4,20}$")
     if USER_RE.match(username):
 		return True 
     return False
@@ -128,7 +128,7 @@ def valid_password(user_password):
 	return False
 	
 def valid_groupname(groupname): 
-	GROUP_RE = re.compile(r"^[a-zA-Z0-9_]{3,10}$")
+	GROUP_RE = re.compile(r"^(?=.*_)[a-zA-Z0-9_]{3,10}$")
 	if GROUP_RE.match(groupname): 
 		return True
 	return False
@@ -769,7 +769,9 @@ class ComposeMessage(BaseHandler):
 						recipient = msg_recipient,\
 						subject = msg_subject,\
 						body = msg_body,\
-						error=error)
+						numMsgs = len(self.inbox),\
+						numSentMsgs = len(self.outbox).\
+						fallback_error=error)
 
 
 ##
@@ -905,8 +907,7 @@ class ViewGroup(BaseHandler):
 			
 		if selected_action == "makeGroup": 
 			qry = cache_group(input_groupname) 
-			user = user_DB.db_by_name(input_groupname)
-			if qry or user: 
+			if qry: 
 				error_msg = "That group already exists" 
 				self.render("viewGroup.html",\
 							user_input_groupname = input_groupname,\
@@ -991,7 +992,12 @@ class ViewGroup(BaseHandler):
 				
 		
 		
-########## SIGNUP PAGE ##########						
+##
+# Class: SignupPage
+# -----------------
+# SignupPage manages the creation of a new user
+#
+##						
 class SignupPage(BaseHandler):
 	
 	def get(self):
@@ -1055,6 +1061,16 @@ class SignupPage(BaseHandler):
 ##
 			
 class Register(SignupPage):
+
+	## 
+	# Implemenation note: 
+	# -------------------
+	# Creation of a new user is kept separate from 
+	# the creation of user's message file and insertion
+	# of the user into UserNames. These actions are separated
+	# so we can use a transaction to ensure that we don't have a
+	# collision if two users try to create the same name simultaneously
+	##
 
 	@db.transactional()
 	def registerUser(self):

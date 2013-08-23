@@ -69,7 +69,7 @@
           					<li><a href="#" onclick="groupActionFn('deleteGroup')">Delete Group</a></li>
            				</ul>
       			</div><!-- /btn-group -->
-      			<input type="text" class="form-control" id="InputGroupname" placeholder="Group name"  pattern="^[a-zA-Z0-9_]{3,10}$" name="groupname" value={{user_input_groupname}}> 
+      			<input type="text" class="form-control" id="InputGroupname" placeholder="Group name"  pattern="^(?=.*_)[a-zA-Z0-9_]{3,10}$" name="groupname" value={{user_input_groupname}}> 
     		</div><!-- /input-group -->
   		</div><!-- /.col-lg-6 -->
 	</div> 
