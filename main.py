@@ -922,6 +922,8 @@ class ViewGroup(BaseHandler):
 			self.render("viewGroup.html",\
 						user_input_groupname = input_groupname,\
 						groups = groupsUserBelongsTo,\
+						numMsgs = len(self.inbox),\
+						numSentMsgs = len(self.outbox),\
 						error = error_msg)
 			return
 		
