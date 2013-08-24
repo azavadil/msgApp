@@ -377,7 +377,7 @@ def cache_group(groupname, update = False):
 	
 	group_result = memcache.get(groupname)
 	if group_result is None or update: 
-		group_result = UserGroup.all().filter("groupname =",groupname.lower()).get()
+		group_result = UserGroup.all().ancestor(group_DB_rootkey()).filter("groupname =",groupname.lower()).get()
 		memcache.set(groupname, group_result)
 	return group_result
 
@@ -559,7 +559,18 @@ class MainPage(BaseHandler):
 						name_provided = input_username,\
 						password_error = pw_msg) 
 		else: 
-			pageNum = int(self.request.get('hiddenPageNum'))
+			##
+			# Impementation note: 
+			# -------------------
+			# Defensive programming, before calling int() 
+			# validate we don't get none [test required] 
+			## 
+			pageNum = self.request.get('hiddenPageNum'); 
+			if not pageNum.isdigit() or pageNum is None: 
+				pageNum = 0
+			else: 
+				pageNum = int(self.request.get('hiddenPageNum'))
+			
 			selectedAction = self.request.get('selectedAction')
 			
 			if selectedAction == 'Older': 
@@ -794,9 +805,29 @@ class ViewMessage(BaseHandler):
 		# That allowed code Message.get(db.Key(path[1:])) where 
 		# the function db.Key() converted a string to a key. 
 		# When there is a parent component to the path the 
-		# key != ID so 
+		# key != ID so
+		# 
+		# Defensive programming: validate we don't have a
+		# string integer before calling int() on the path
+		# [test required] 
 		##
+		
+		logging.warning(path)
+		if not path[1:].isdigit() or path is None: 
+			self.notfound()
+			return
+		
 		msg = Message.db_by_id(int(path[1:]))
+		
+		##
+		# Implementation note: defend against a garbage URL
+		# --------------------------------------------------
+		# If the ID doesn't return a message return not found
+        # [test required] 		
+		## 
+		if not msg:
+			self.notfound()
+			return
 		
 		## 
 		# Impmlementation note: defend against malicious users
@@ -804,7 +835,9 @@ class ViewMessage(BaseHandler):
 		# Validate that the user that's logged in is either
 		# the recipient or the author of the message. If not, 
 		# fail silently. Don't give the user any more information
+		# [test required]
 		##
+		
 		if self.user.key() not in msg.recipientKeys and self.user.key().id() != msg.authorID: 
 			self.error(400)
 			return 
@@ -930,6 +963,7 @@ class ViewGroup(BaseHandler):
 			else: 
 				qry.groupKeys.append(self.user.key())
 				qry.put()
+				cache_group(input_groupname, update=True)
 				cache_user_group(self.user, update=True)
 				self.redirect("/group")
 		
@@ -951,6 +985,7 @@ class ViewGroup(BaseHandler):
 				else:
 					qry.groupKeys.remove(self.user.key())
 					qry.put()
+					cache_group(input_groupname, update=True)
 					cache_user_group(self.user, update=True)
 					self.redirect("/group")
 		
@@ -979,6 +1014,7 @@ class ViewGroup(BaseHandler):
 			else: 
 				## we have a problem here in that we need to update the cache for all members of the group
 				qry.delete()
+				cache_group(input_groupname, update = True)
 				## REFACTOR. this needs to be tested  
 				for userKey in qry.groupKeys: 
 					userEntity = user_DB.get(userKey)
@@ -1075,6 +1111,7 @@ class Register(SignupPage):
 		if user:
 			msg = 'That user already exists.'
 			self.render('signupPage.html', fallback_error = msg, isSignupPage = True)
+			return None
 		else:
 			##
 			# Implementation note: 
@@ -1099,6 +1136,15 @@ class Register(SignupPage):
 		# as a transaction
 		## 
 		userEntity = self.registerUser()
+		
+		##
+		# Implementation note: 
+		# --------------------
+		# If the user already exists, then registerUser
+		# returns None and we do not proceed [test required]
+		##
+		if not userEntity: 
+			return
 		newMsgFile = MsgFile.createMsgFile()
 		userEntity.msg_file = newMsgFile
 		userEntity.put()
