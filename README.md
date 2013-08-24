@@ -5,11 +5,11 @@ Application outline
 In implementating a messaging system I thought about how I would build a messaging system without a computer. If I was providing a secure service where users could call in to get messages and leave messages for other users I would need the following: 
 
 1. A list of users and their passwords ("User File")
-2. A list of the messages IDs for that user ("Msg List") indicating which messages that user receives 
+2. A list of the messages IDs for each user ("Msg List") indicating which messages the user should receive 
 3. A file of the messages, each with a unique ID ("Message File")
 4. A list of groups, each group listing the members of their group. ("Group List") 
 
-With the above tools, one can envision how the service would work. When a user calls in, the service validates their identity with the User File. The service pulls up the Msg List (for that user) and finds all messages addressed to the user. When a user leaves a message, the message is added to Message File with a unique ID and the ID gets add to the recipient's Msg List. For group or global distributions, the message ID gets added to each group member's Msg List.  
+With the above tools, one can envision how the service would work. When a user calls in, the service validates their identity with the User File. The service pulls up the Msg List (for that user) and finds all messages addressed to the user. When a user leaves a message for a specific recipient, the message is added to the central Message File with a unique ID and the ID gets add to the recipient's Msg List. For group and global distributions, the message ID is added to each group member's Msg List.  
 
 One advantage of the system is only one copy of each message is retained avoiding duplication. Global and group distributions are easy as they only require adding the message ID to the message file of the specified users.   
 
@@ -19,9 +19,9 @@ Application logic
 -----------------
 The application logic is contained in the file [main.py](https://github.com/azavadil/msgApp/blob/master/main.py). Following the outline above, when a user arrives at the site the application checks to see if the user is logged in. If not, the user has the option of signing into their account or creating a new account. When the user logs in a secure cookie is set which can subsequently be used to to validate their identity. Upon login, an inbox of the user's ten most recent messages is displayed. The user can click on any of the listed messages listed in the inbox to view the message content. 
 
-The user also has the option to send messages to other users on the system. When a user sends a message, two things happen. The message is stored to the Message database and the message ID (i.e. the message's datastore key) is added to the recipient/recipeints message lists.
+The user also has the option to send messages to other users on the system. When a user sends a message, two things happen. The message is stored to the Message database and the message ID (i.e. the message's datastore key) is added to the recipient/recipients message lists.
 
-This structure addresses the specifications of the problem. For example, sending a global broadcast of the message results in a single message being saved to the datastore and the message ID (i.e. the message's datastore key) being added to each user's message list. Similarly, when a message is sent to a group, the message is saved to the datastore and the message ID is added to the message list of group members. This ensures that the message is received only by users who are members of the group at the time the message was sent. 
+This structure addresses the specifications of the problem. For example, sending a global broadcast of the message results in a single message being saved to the datastore and the message ID (i.e. the message's datastore key) being added to each user's message list. Similarly, when a message is sent to a group, the message is saved to the datastore and the message ID is added to the message list of current group members. This ensures that the message is received only by users who are members of the group at the time the message was sent. 
 
 
 Database Models
