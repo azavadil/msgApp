@@ -941,6 +941,8 @@ class ViewGroup(BaseHandler):
 				self.render("viewGroup.html",\
 							user_input_groupname = input_groupname,\
 							groups = groupsUserBelongsTo,\
+							numMsgs = len(self.inbox),\
+							numSentMsgs = len(self.outbox),\
 							error = error_msg)
 			else:
 				to_store = UserGroup(parent = group_DB_rootkey(),\
@@ -959,6 +961,8 @@ class ViewGroup(BaseHandler):
 				self.render("viewGroup.html",\
 							user_input_groupname = input_groupname,\
 							groups = groupsUserBelongsTo,\
+							numMsgs = len(self.inbox),\
+							numSentMsgs = len(self.outbox),\
 							error = error_msg)
 			else: 
 				qry.groupKeys.append(self.user.key())
@@ -974,6 +978,8 @@ class ViewGroup(BaseHandler):
 				self.render("viewGroup.html",\
 							user_input_groupname = input_groupname,\
 							groups = groupsUserBelongsTo,\
+							numMsgs = len(self.inbox),\
+							numSentMsgs = len(self.outbox),\
 							error = error_msg)
 			else: 
 				if self.user.key() not in qry.groupKeys: 
@@ -981,6 +987,8 @@ class ViewGroup(BaseHandler):
 					self.render("viewGroup.html",\
 								user_input_groupname = input_groupname,\
 								groups = groupsUserBelongsTo,\
+								numMsgs = len(self.inbox),\
+								numSentMsgs = len(self.outbox),\
 								error = error_msg)
 				else:
 					qry.groupKeys.remove(self.user.key())
@@ -996,6 +1004,8 @@ class ViewGroup(BaseHandler):
 				self.render("viewGroup.html",\
 							user_input_groupname = input_groupname,\
 							groups = groupsUserBelongsTo,\
+							numMsgs = len(self.inbox),\
+							numSentMsgs = len(self.outbox),\
 							error = error_msg)
 			##
 			# Implementation note: 
@@ -1010,6 +1020,8 @@ class ViewGroup(BaseHandler):
 				self.render("viewGroup.html",\
 							user_input_groupname = input_groupname,\
 							groups = groupsUserBelongsTo,\
+							numMsgs = len(self.inbox),\
+							numSentMsgs = len(self.outbox),\
 							error = error_msg)
 			else: 
 				## we have a problem here in that we need to update the cache for all members of the group
