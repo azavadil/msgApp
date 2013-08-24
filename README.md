@@ -21,7 +21,7 @@ The application logic is contained in the file [main.py](https://github.com/azav
 
 The user also has the option to send messages to other users on the system. When a user sends a message, two things happen. The message is stored to the Message database and the message ID (i.e. the message's datastore key) is added to the recipient/recipients message lists.
 
-This structure addresses the specifications of the problem. For example, sending a global broadcast of the message results in a single message being saved to the datastore and the message ID (i.e. the message's datastore key) being added to each user's message list. Similarly, when a message is sent to a group, the message is saved to the datastore and the message ID is added to the message list of current group members. This ensures that the message is received only by users who are members of the group at the time the message was sent. 
+This structure efficiently addresses some of the challenges posed by the coding exercise. For example, sending a global broadcast of the message results in a single message being saved to the datastore and the message ID (i.e. the message's datastore key) being added to each user's message list. Similarly, when a message is sent to a group, the message is saved to the datastore and the message ID is added to the message list of current group members. This ensures that the message is received only by users who are members of the group at the time the message was sent. 
 
 
 Database Models
