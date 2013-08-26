@@ -918,7 +918,7 @@ class ViewGroup(BaseHandler):
 		
 		error_msg = ""
 		if not valid_groupname(input_groupname): 
-			error_msg = "Please enter a valid groupname"
+			error_msg = "Please enter a valid groupname. Groupname must be lowercase/uppercase/digit and at least 1 underscore."
 			self.render("viewGroup.html",\
 						user_input_groupname = input_groupname,\
 						groups = groupsUserBelongsTo,\
