@@ -1,6 +1,15 @@
+
 import sys
 import os
 sys.path.append(os.path.join(os.path.dirname(__file__), 'lib'))
+
+from passwordFn import make_salt
+from passwordFn import make_pw_hash
+from passwordFn import valid_pw
+from passwordFn import hash_str
+from passwordFn import make_secure_val
+from passwordFn import check_secure_val
+
 
 import webapp2
 import jinja2
@@ -36,53 +45,6 @@ def render_str(template, **params):
 	return t.render(params)
 
 
-##
-# Implementation note: 
-# -------------------
-# This section includes the functions used for managing 
-# a secure password system. User passwords are stored
-# as salted, hashed values in the database.  
-##
-
-# put the secret into another module and change to a unique 
-# secret for your app
-
-SECRET = hashsecret.getSecret()
-
-def make_salt():
-    return ''.join(random.choice(string.letters) for x in xrange(5))
-
-def make_pw_hash(name, pw,salt = None):
-	if not salt:
-		salt = make_salt()
-	h = hashlib.sha256(name+pw+salt).hexdigest()
-	return '%s|%s' %(h, salt)
-
-def valid_pw(name, pw, h):
-    salt = h.split('|')[1]
-    return h == make_pw_hash(name, pw, salt)
-	
-def hash_str(s):
-    return hmac.new(SECRET,s).hexdigest()
-	
-def make_secure_val(s):
-    """make secure value is used to generate outgoing keys
-    to be sent and stored by the browser"""
-    # s is the string
-    # hash_str(s) the is hashed value of the string
-    return '%s|%s' %(s, hash_str(s))
-
-def check_secure_val(h):
-    """(str) -> str or Nonetype
-        check_secure_val take a string in the format
-        {value} | {hashed value of (value + secret)}
-        and returns the value if the hashing the value
-        the secret matches the hash value component of the string
-    """ 
-    val = h.split('|')[0]
-    if h == make_secure_val(val):
-        return val
-		
 		
 ##
 # Implementation note: 
