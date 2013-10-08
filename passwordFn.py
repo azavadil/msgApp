@@ -1,3 +1,11 @@
+##
+# Implementation note: 
+# -------------------
+# This section includes the functions used for managing 
+# a secure password system. User passwords are stored
+# as salted, hashed values in the database.  
+##
+
 import random
 import string
 import hmac
