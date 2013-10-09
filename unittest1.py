@@ -1,11 +1,10 @@
 import passwordFn
+import validationFn
 import unittest
 
 class TestPasswordFunctions(unittest.TestCase):
 
-	def setUp(self):
-		self.seq = range(10)
-
+	
 	def test_make_salt1(self):
 		salt = passwordFn.make_salt()
 		self.assertTrue(len(salt) == 5)
@@ -69,9 +68,11 @@ class TestPasswordFunctions(unittest.TestCase):
 		
 		self.assertTrue( passwordFn.check_secure_val( hashString ) )
 		
-			
+def suite(): 
+	suite = unittest.TestLoader().loadTestsFromTestCase(TestPasswordFunctions)
+	return suite
 		
-		
+	
 if __name__ == '__main__':
     unittest.main()
 	

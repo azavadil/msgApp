@@ -1,7 +1,7 @@
 import validationFn
 import unittest
 
-class TestPasswordFunctions(unittest.TestCase):
+class TestValidationFunctions(unittest.TestCase):
 
 
 	def test_valid_username1(self):
@@ -61,7 +61,10 @@ class TestPasswordFunctions(unittest.TestCase):
 		
 		grp = '107' 
 		self.assertFalse( validationFn.valid_groupname( grp ) )
-		
+	
+def suite():
+	suite = unittest.TestLoader().loadTestsFromTestCase(TestValidationFunctions)
+	return suite
 		
 if __name__ == '__main__':
     unittest.main()
