@@ -9,6 +9,9 @@ from users_db import UsersDb
 from message_db import MessageDb
 from message_db import message_db_rootkey
 
+from user_group_db import UserGroup
+from user_group_db import group_db_rootkey
+
 from validation_fn import escape_html
 from validation_fn import valid_username
 from validation_fn import valid_password
@@ -60,35 +63,7 @@ def render_str(template, **params):
 #				an autocompletion trie
 #
 
-
-	
     		
-#
-# Function: group_DB_rootkey
-# --------------------------
-# Generates default key to serve as parent key for 
-# the UserGroup entity model 
-#
-
-def group_DB_rootkey(group = 'default'):
-	
-	""" 
-		group_DB_rootkey returns a default parent key. 
-		parent keys are used to organize all UserGroups 
-		entities into a single entity group. 
-	"""
-	
-	return db.Key.from_path('UserGroup', group)
-
-	
-class UserGroup(db.Model):
-	groupname = db.StringProperty(required = True)
-	groupKeys = db.ListProperty(db.Key, required = True)
-	groupAuthor = db.ReferenceProperty(required = True, indexed = False)
-    	
-	@classmethod
-	def db_by_name(cls, groupname): 
-		return UserGroup.all().ancestor(group_DB_rootkey()).filter("groupname = ", groupname).get()
 
 def usermsg_DB_rootkey(group = 'default'):
 	""" 
@@ -100,7 +75,7 @@ def usermsg_DB_rootkey(group = 'default'):
 	
 	return db.Key.from_path('MsgFile', group)
 		
-##
+#
 # Class: MsgFile
 # --------------
 # The MsgFile class models a one-to-one relationship with 
@@ -108,7 +83,7 @@ def usermsg_DB_rootkey(group = 'default'):
 # when a user registered for the application. The relationship
 # is established by storing the MsgFile key as ReferenceProperty
 # on the UsersDb entity for that user. 
-##
+#
 
 class MsgFile(db.Model):
 	messageKeys = db.ListProperty(db.Key, required = True, indexed = False)
@@ -190,7 +165,7 @@ def cache_user_group(user, update = False):
 	user_group_key = "group_" + str(user.key().id())
 	list_of_users_groups = memcache.get(user_group_key)
 	if list_of_users_groups is None or update: 
-		list_of_users_groups = UserGroup.all().ancestor(group_DB_rootkey()).filter("groupKeys =",user.key()).fetch(10)
+		list_of_users_groups = UserGroup.all().ancestor(group_db_rootkey()).filter("group_keys =",user.key()).fetch(10)
 		memcache.set(user_group_key, list_of_users_groups)
 	return list_of_users_groups
 		
@@ -202,7 +177,7 @@ def cache_group(groupname, update = False):
 	
 	group_result = memcache.get(groupname)
 	if group_result is None or update: 
-		group_result = UserGroup.all().ancestor(group_DB_rootkey()).filter("groupname =",groupname.lower()).get()
+		group_result = UserGroup.all().ancestor(group_db_rootkey()).filter("groupname =",groupname.lower()).get()
 		memcache.set(groupname, group_result)
 	return group_result
 
@@ -280,9 +255,9 @@ class BaseHandler(webapp2.RequestHandler):
 		if self.user:
 			userMsgFile = self.user.msg_file
 			self.inbox = sorted(db.get(userMsgFile.messageKeys),\
-			key=lambda x:x.created, reverse=True)
+				key=lambda x:x.created, reverse=True)
 			self.outbox = sorted(db.get(userMsgFile.sentKeys),\
-			key=lambda x:x.created, reverse =True)
+				key=lambda x:x.created, reverse =True)
 		
 		
 		## 
@@ -312,7 +287,7 @@ class BaseHandler(webapp2.RequestHandler):
 class MainPage(BaseHandler):
 	def get(self):
 	
-		##
+		#
 		# Implementation note: 
 		# -------------------
 		# There are three cases. The control flow is such that
@@ -322,7 +297,7 @@ class MainPage(BaseHandler):
 		# 
 		# If the user is logged in we check for trie data (only 
 		# occurs once) and include the trie data. 		
-		##
+		#
 		
 		if not self.user: 
 			self.render("summaryPanel.html")
@@ -342,7 +317,7 @@ class MainPage(BaseHandler):
 						pageNum = '0',\
 						user = self.user)
 
-	##
+	#
 	# Implementation note: 
 	# -------------------
 	# The front page receives a post request when an 
@@ -356,7 +331,7 @@ class MainPage(BaseHandler):
 	# messages. It's easy to distinguish between the 
 	# two cases as only a logged in user can navigate
 	# messages
-	##  
+	#  
 	
 	def post(self):
 
@@ -365,7 +340,7 @@ class MainPage(BaseHandler):
 			input_username = self.request.get('username')
 			input_password = self.request.get('password')
 		
-			##
+			#
 			# Implementation note: 
 			# --------------------
 			# db_login returns the user id and the empty string 
@@ -373,7 +348,7 @@ class MainPage(BaseHandler):
 			# "Username and password don't match" if the user 
 			# was found but the password doesn't validate, and 
 			# "Invalid login" otherwise
-			##
+			#
 			user, pw_msg = UsersDb.db_login(input_username,input_password)
 			
 			if user and pw_msg == '': 
@@ -478,7 +453,7 @@ class ComposeMessage(BaseHandler):
 			return
 		
 		
-		##
+		#
 		# Implementation note: 
 		# -------------------
 		# The only time ComposeMessage is rendered with msgAuthor
@@ -486,7 +461,7 @@ class ComposeMessage(BaseHandler):
 		# The ViewMessage handler extracts the post data, builds 
 		# a query string from the post data, and redirects to 
 		# the /newMsg URL
-		## 
+		# 
 		if self.request.get('msgAuthor'): 
 			self.render("composeMsg.html",\
 				numMsgs = len(self.inbox),\
@@ -547,11 +522,11 @@ class ComposeMessage(BaseHandler):
 							author_id = self.user.key().id(),\
 							subject = msg_subject,\
 							body = msg_body,\
-							recipient_keys = group_qry.groupKeys)
+							recipient_keys = group_qry.group_keys)
 		
 			to_store.put()
 			
-			for recipientKey in group_qry.groupKeys:
+			for recipientKey in group_qry.group_keys:
 				msg_file = UsersDb.get(recipientKey).msg_file
 				msg_file.messageKeys.append(to_store.key())
 				msg_file.unreadKeys.append(to_store.key())
@@ -563,11 +538,11 @@ class ComposeMessage(BaseHandler):
 			self.redirect("/")
 	
 		
-		##Query the database for the recipient
+		# Query the database for the recipient
 		recipientEntity = UsersDb.db_by_name(msg_recipient) 
 		
 		if recipientEntity:
-			##create a new Message entity
+			# create a new Message entity
 			to_store = MessageDb(parent = message_db_rootkey(),\
 							author = self.user.user_name,\
 							author_id = self.user.key().id(),\
@@ -606,11 +581,11 @@ class ComposeMessage(BaseHandler):
 						fallback_error=error)
 
 
-##
+#
 # Class: ViewMessage
 # ------------------
 # ViewMessage manages the display of a single message
-##
+#
 				
 class ViewMessage(BaseHandler):
 	def get(self, path):
@@ -772,10 +747,10 @@ class ViewGroup(BaseHandler):
 							numSentMsgs = len(self.outbox),\
 							error = error_msg)
 			else:
-				to_store = UserGroup(parent = group_DB_rootkey(),\
+				to_store = UserGroup(parent = group_db_rootkey(),\
 									groupname = input_groupname.lower(),\
-									groupKeys = [self.user.key()],\
-									groupAuthor = self.user.key())
+									group_keys = [self.user.key()],\
+									group_author = self.user.key())
 				to_store.put()
 				cache_group(input_groupname, update=True)
 				cache_user_group(self.user, update=True)
@@ -792,7 +767,7 @@ class ViewGroup(BaseHandler):
 							numSentMsgs = len(self.outbox),\
 							error = error_msg)
 			else: 
-				qry.groupKeys.append(self.user.key())
+				qry.group_keys.append(self.user.key())
 				qry.put()
 				cache_group(input_groupname, update=True)
 				cache_user_group(self.user, update=True)
@@ -809,7 +784,7 @@ class ViewGroup(BaseHandler):
 							numSentMsgs = len(self.outbox),\
 							error = error_msg)
 			else: 
-				if self.user.key() not in qry.groupKeys: 
+				if self.user.key() not in qry.group_keys: 
 					error_msg = "You don't belong to that group" 
 					self.render("viewGroup.html",\
 								user_input_groupname = input_groupname,\
@@ -818,7 +793,7 @@ class ViewGroup(BaseHandler):
 								numSentMsgs = len(self.outbox),\
 								error = error_msg)
 				else:
-					qry.groupKeys.remove(self.user.key())
+					qry.group_keys.remove(self.user.key())
 					qry.put()
 					cache_group(input_groupname, update=True)
 					cache_user_group(self.user, update=True)
@@ -837,12 +812,12 @@ class ViewGroup(BaseHandler):
 			##
 			# Implementation note: 
 			# --------------------
-			# groupAuthor is set as Reference property on the group. 
-			# Therefore, qry.groupAuthor dereferences a user entity. 
-			# This may be a surprising result since we set groupAuthor
+			# group_author is set as Reference property on the group. 
+			# Therefore, qry.group_author dereferences a user entity. 
+			# This may be a surprising result since we set group_author
 			# to be self.user.key().
 			##
-			elif qry.groupAuthor.key() != self.user.key(): 
+			elif qry.group_author.key() != self.user.key(): 
 				error_msg = "Only group author can delete group"
 				self.render("viewGroup.html",\
 							user_input_groupname = input_groupname,\
@@ -855,7 +830,7 @@ class ViewGroup(BaseHandler):
 				qry.delete()
 				cache_group(input_groupname, update = True)
 				## REFACTOR. this needs to be tested  
-				for userKey in qry.groupKeys: 
+				for userKey in qry.group_keys: 
 					userEntity = UsersDb.get(userKey)
 					cache_user_group(userEntity, update=True)
 				self.redirect("/group")
@@ -928,11 +903,11 @@ class SignupPage(BaseHandler):
 # a user to the database. Register is implemented by 
 # inheriting from signupPage and overwriting the done() 
 # method. 
-##
+#
 			
 class Register(SignupPage):
 
-	## 
+	# 
 	# Implementation note: 
 	# -------------------
 	# Creation of a new user is kept separate from 
@@ -940,7 +915,7 @@ class Register(SignupPage):
 	# of the user into UserNames. These actions are separated
 	# so we can use a transaction to ensure that we don't have a
 	# collision if two users try to create the same name simultaneously
-	##
+	#
 
 	@db.transactional()
 	def registerUser(self):
@@ -967,21 +942,21 @@ class Register(SignupPage):
 	
 	def done(self):
 		
-		##
+		#
 		# Implementation note: 
 		# --------------------
 		# We create the user separately from the other 
 		# actions so we can add the user to the UsersDb 
 		# as a transaction
-		## 
+		# 
 		userEntity = self.registerUser()
 		
-		##
+		#
 		# Implementation note: 
 		# --------------------
 		# If the user already exists, then registerUser
 		# returns None and we do not proceed [test required]
-		##
+		#
 		if not userEntity: 
 			return
 		newMsgFile = MsgFile.createMsgFile()
@@ -995,14 +970,14 @@ class Register(SignupPage):
 		self.redirect("/")
 
 		
-##
+#
 # Class: LogoutPage
 # -----------------
 # LogoutPage manages user logout. Simple class
 # that calls the handler_logout() method (defined 
 # in the BaseHanlder class and redirects to the 
 # home page 
-## 					
+# 					
 class LogoutPage(BaseHandler):
 	
     def get(self):
@@ -1011,12 +986,12 @@ class LogoutPage(BaseHandler):
 		
 		
 		
-##
+#
 # Implementation note: 
 # -------------------
 # anything that is in paratheses gets passed in to 
 # the handler the regular expression matches ()		
-##
+#
 
 MSGKEY_RE = r'(/(?:[a-zA-Z0-9_-]+)*)'
 
