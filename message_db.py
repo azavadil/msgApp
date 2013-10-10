@@ -10,7 +10,7 @@ from google.appengine.ext import db
 # Generate a default parent key
 ##
 	
-def message_DB_rootkey(group = 'default'):
+def message_db_rootkey(group = 'default'):
 	""" 
 		message_DB_rootkey returns a default parent key. 
 		parent keys are used to organize all Messages 
@@ -18,7 +18,7 @@ def message_DB_rootkey(group = 'default'):
 	"""
 	return db.Key.from_path('Message', group)
 		
-class Message_DB(db.Model):
+class MessageDb(db.Model):
     ##required = True, will raise an exception if we try to create 
     ##content without a title
 	author = db.StringProperty(required = True)
@@ -37,4 +37,4 @@ class Message_DB(db.Model):
     	
 	@classmethod 
 	def db_by_id(cls, msgID):
-		return Message_DB.get_by_id(msgID, message_DB_rootkey())
+		return MessageDb.get_by_id(msgID, message_db_rootkey())

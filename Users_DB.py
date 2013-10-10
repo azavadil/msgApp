@@ -2,11 +2,11 @@ import sys
 sys.path.append( 'G:\\msgApp\\msg' )
 
 from google.appengine.ext import db
-from passwordFn import make_pw_hash
-from passwordFn import valid_pw
+from password_fn import make_pw_hash
+from password_fn import valid_pw
 
 
-def users_DB_rootkey(group = 'default'):
+def users_db_rootkey(group = 'default'):
 	""" 	
 		user_DB_rootkey returns a default parent key for 
 		the user_DB class. Parent keys are used to organize 
@@ -20,13 +20,13 @@ def users_DB_rootkey(group = 'default'):
 	"""
 	return db.Key.from_path('user_DB', group)	
     
-##
-# class: user_DB
+#
+# class: UsersDb
 # --------------
-# The user_DB model models a single user.  
-##
+# The UsersDb model models a single user.  
+#
 	
-class user_DB(db.Model):
+class UsersDb(db.Model):
 	user_name = db.StringProperty(required = True)
 	pw_hash = db.StringProperty(required = True, indexed = False)
 	msg_file = db.ReferenceProperty(required = False, indexed = False)
@@ -36,18 +36,18 @@ class user_DB(db.Model):
 	
 	@classmethod
 	def db_by_id(cls, uid):
-		return user_DB.get_by_id(uid,users_DB_rootkey())
+		return UsersDb.get_by_id(uid,users_db_rootkey())
 
 	@classmethod
 	def db_by_name(cls, name):
-		u = user_DB.all().ancestor(users_DB_rootkey()).filter('user_name =', name).get()
+		u = UsersDb.all().ancestor(users_db_rootkey()).filter('user_name =', name).get()
 		return u
 		
 	@classmethod   
 	def register(cls, name, pw):
 		current_pw_hash = make_pw_hash(name, pw)
 		
-		return user_DB(parent = users_DB_rootkey(),\
+		return UsersDb(parent = users_db_rootkey(),\
             				user_name = name,\
 							pw_hash = current_pw_hash)
 								
