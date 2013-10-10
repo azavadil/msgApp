@@ -44,7 +44,7 @@ def render_str(template, **params):
 
 
 					
-##
+#
 # Implementation note: 
 # -------------------
 # The app uses 5 database models. 
@@ -58,17 +58,17 @@ def render_str(template, **params):
 # UserNames: 	models a list of all the users. Used to rapidly provide
 #				a name list for transmital to client to build the 
 #				an autocompletion trie
-##
+#
 
 
 	
     		
-##
+#
 # Function: group_DB_rootkey
 # --------------------------
 # Generates default key to serve as parent key for 
 # the UserGroup entity model 
-##
+#
 
 def group_DB_rootkey(group = 'default'):
 	
@@ -513,16 +513,16 @@ class ComposeMessage(BaseHandler):
 		
 		# check if the message is a global broadcast
 		if msg_recipient.lower() == "all": 
-			## check
+			## NTD
 			recipients = db.Query(UsersDb)
-			recipientKeys = db.Query(UsersDb, keys_only=True)
+			recipient_keys = db.Query(UsersDb, keys_only=True)
 			
 			to_store = MessageDb(parent = message_db_rootkey(),\
 							author = self.user.user_name,\
-							authorID = self.user.key().id(),\
+							author_id = self.user.key().id(),\
 							subject = msg_subject,\
 							body = msg_body,\
-							recipientKeys = list(recipientKeys))
+							recipient_keys = list(recipient_keys))
 			to_store.put()
 			
 			for recipient in recipients: 
@@ -544,10 +544,10 @@ class ComposeMessage(BaseHandler):
 			# create a new Message entity
 			to_store = MessageDb(parent = message_db_rootkey(),\
 							author = self.user.user_name,\
-							authorID = self.user.key().id(),\
+							author_id = self.user.key().id(),\
 							subject = msg_subject,\
 							body = msg_body,\
-							recipientKeys = group_qry.groupKeys)
+							recipient_keys = group_qry.groupKeys)
 		
 			to_store.put()
 			
@@ -570,10 +570,10 @@ class ComposeMessage(BaseHandler):
 			##create a new Message entity
 			to_store = MessageDb(parent = message_db_rootkey(),\
 							author = self.user.user_name,\
-							authorID = self.user.key().id(),\
+							author_id = self.user.key().id(),\
 							subject = msg_subject,\
 							body = msg_body, 
-							recipientKeys = [recipientEntity.key()])
+							recipient_keys = [recipientEntity.key()])
 				
 			# store the message object
 			to_store.put()
@@ -663,7 +663,7 @@ class ViewMessage(BaseHandler):
 		# [test required]
 		##
 		
-		if self.user.key() not in msg.recipientKeys and self.user.key().id() != msg.authorID: 
+		if self.user.key() not in msg.recipient_keys and self.user.key().id() != msg.author_id: 
 			self.error(400)
 			return 
 		

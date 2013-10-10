@@ -22,10 +22,10 @@ class MessageDb(db.Model):
     ##required = True, will raise an exception if we try to create 
     ##content without a title
 	author = db.StringProperty(required = True)
-	authorID = db.IntegerProperty(required = True)
+	author_id = db.IntegerProperty(required = True)
 	subject = db.StringProperty(required = False)
 	body = db.TextProperty(required = False, indexed = False)
-	recipientKeys = db.ListProperty(db.Key, required = True, indexed = False) 
+	recipient_keys = db.ListProperty(db.Key, required = True, indexed = False) 
 	##auto_now_add sets created to be the current time
 	created = db.DateTimeProperty(auto_now_add = True)
 	
