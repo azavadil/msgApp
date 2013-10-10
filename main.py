@@ -2,12 +2,12 @@ import sys
 import os
 sys.path.append(os.path.join(os.path.dirname(__file__), 'lib'))
 
-from passwordFn import make_salt
-from passwordFn import make_pw_hash
-from passwordFn import valid_pw
-from passwordFn import hash_str
 from passwordFn import make_secure_val
 from passwordFn import check_secure_val
+
+from Users_DB import user_DB
+from Message import Message_DB
+from Message import message_DB_rootkey
 
 from validationFn import escape_html
 from validationFn import valid_username
@@ -58,95 +58,7 @@ def render_str(template, **params):
 #				an autocompletion trie
 ##
 
-def users_DB_rootkey(group = 'default'):
-	""" 	
-		user_DB_rootkey returns a default parent key for 
-		the user_DB class. Parent keys are used to organize 
-		all user_DB entities into a single entity group. 
-		The parent key is in the form kind/key_name 
-		(e.g. user_DB/'default').  
-		Child keys are in the format kind/parent/ID 
-		(e.g. user_DB/'default'/XXXXXX)
-		
-		There's an equivalent syntax user_DB(key_name=group) 
-	"""
-	return db.Key.from_path('user_DB', group)	
-    
-##
-# class: user_DB
-# --------------
-# The user_DB model models a single user.  
-##
-	
-class user_DB(db.Model):
-	user_name = db.StringProperty(required = True)
-	pw_hash = db.StringProperty(required = True, indexed = False)
-	msg_file = db.ReferenceProperty(required = False, indexed = False)
-	##auto_now_add sets created to be the current time
-	created = db.DateTimeProperty(auto_now_add = True)
-	last_modified = db.DateTimeProperty(auto_now = True)
-	
-	@classmethod
-	def db_by_id(cls, uid):
-		return user_DB.get_by_id(uid,users_DB_rootkey())
 
-	@classmethod
-	def db_by_name(cls, name):
-		u = user_DB.all().ancestor(users_DB_rootkey()).filter('user_name =', name).get()
-		return u
-		
-	@classmethod   
-	def register(cls, name, pw):
-		current_pw_hash = make_pw_hash(name, pw)
-		
-		return user_DB(parent = users_DB_rootkey(),\
-            				user_name = name,\
-							pw_hash = current_pw_hash)
-								
-	@classmethod
-	def db_login(cls, name, pw):
-		u = cls.db_by_name(name)	
-		if u and valid_pw(name, pw, u.pw_hash):
-			return u, ''
-		elif u:
-			return u, "Username and password don't match"
-		else:	
-			return None, "Invalid login"
-
-##
-# Function: message_DB_rootkey 
-# ----------------------------
-# Generate a default parent key
-##
-	
-def message_DB_rootkey(group = 'default'):
-	""" 
-		message_DB_rootkey returns a default parent key. 
-		parent keys are used to organize all Messages 
-		into a single entity group. 
-	"""
-	return db.Key.from_path('Message', group)
-		
-class Message(db.Model):
-    ##required = True, will raise an exception if we try to create 
-    ##content without a title
-	author = db.StringProperty(required = True)
-	authorID = db.IntegerProperty(required = True)
-	subject = db.StringProperty(required = False)
-	body = db.TextProperty(required = False, indexed = False)
-	recipientKeys = db.ListProperty(db.Key, required = True, indexed = False) 
-	##auto_now_add sets created to be the current time
-	created = db.DateTimeProperty(auto_now_add = True)
-	
-	def render(self, b_summarize = None):
-		self._render_text = self.body.replace('\n','<br>')
-		return render_str("formattedMsg.html",\
-							page = self,\
-							summarize_text = b_summarize)
-    	
-	@classmethod 
-	def db_by_id(cls, msgID):
-		return Message.get_by_id(msgID, message_DB_rootkey())
 	
     		
 ##
@@ -600,7 +512,7 @@ class ComposeMessage(BaseHandler):
 			recipients = db.Query(user_DB)
 			recipientKeys = db.Query(user_DB, keys_only=True)
 			
-			to_store = Message(parent = message_DB_rootkey(),\
+			to_store = Message_DB(parent = message_DB_rootkey(),\
 							author = self.user.user_name,\
 							authorID = self.user.key().id(),\
 							subject = msg_subject,\
@@ -625,7 +537,7 @@ class ComposeMessage(BaseHandler):
 		if group_qry: 
 			
 			# create a new Message entity
-			to_store = Message(parent = message_DB_rootkey(),\
+			to_store = Message_DB(parent = message_DB_rootkey(),\
 							author = self.user.user_name,\
 							authorID = self.user.key().id(),\
 							subject = msg_subject,\
@@ -651,7 +563,7 @@ class ComposeMessage(BaseHandler):
 		
 		if recipientEntity:
 			##create a new Message entity
-			to_store = Message(parent = message_DB_rootkey(),\
+			to_store = Message_DB(parent = message_DB_rootkey(),\
 							author = self.user.user_name,\
 							authorID = self.user.key().id(),\
 							subject = msg_subject,\
@@ -725,7 +637,7 @@ class ViewMessage(BaseHandler):
 			self.notfound()
 			return
 		
-		msg = Message.db_by_id(int(path[1:]))
+		msg = Message_DB.db_by_id(int(path[1:]))
 		
 		##
 		# Implementation note: defend against a garbage URL
@@ -782,7 +694,7 @@ class ViewMessage(BaseHandler):
 		msgSubject = self.request.get('msgSubject')
 		
 	
-		msg = Message.db_by_id(int(path[1:]))
+		msg = Message_DB.db_by_id(int(path[1:]))
 		
 		if selectedAction == "reply":
 		
