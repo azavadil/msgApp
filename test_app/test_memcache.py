@@ -7,8 +7,10 @@ from google.appengine.ext import testbed
 # Databases split out as modules
 import memcache_fn
 import users_db
+import user_group_db
+
   
-class TestDbs(unittest.TestCase):
+class TestMemcache(unittest.TestCase):
 
 	def setUp(self):
 		# First, create an instance of the Testbed class
@@ -23,15 +25,45 @@ class TestDbs(unittest.TestCase):
 		test_user.put()
 		self.test_user = test_user
 
+		test_group = user_group_db.UserGroup(
+					parent=user_group_db.group_db_rootkey(), 
+					groupname='cs_101', 
+					group_author=test_user
+					)
+		test_group.put()
+		self.test_group = test_group
+			
+		
 	def tearDown(self):
+	
 		self.testbed.deactivate()	
 		
-	def test_cache_user(user_id):
+	def test_cache_user(self):
 	
 		uid = self.test_user.key().id()
 		result = memcache_fn.cache_user( str(uid) )
-		assertEquals( self.test_user.key(), result.key()) 
+		self.assertEquals( self.test_user.key(), result.key()) 
 	
+	def test_cache_user_group(self): 
+		
+		group_list = memcache_fn.cache_user_group(self.test_user)
+		self.assertEquals( len(group_list), 0)
+
+	def test_cache_group(self):
+		
+		result = memcache_fn.cache_group(groupname='cs_101',\
+										update=True
+										)
+										
+		self.assertEqual( result.groupname, self.test_group.groupname )
+		
+		
+		 
+		
+		
+		
+		
+		
 	
 if __name__ == '__main__':
     unittest.main()

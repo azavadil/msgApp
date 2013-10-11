@@ -21,6 +21,10 @@ from validation_fn import valid_username
 from validation_fn import valid_password
 from validation_fn import valid_groupname
 
+from memcache_fn import cache_user
+from memcache_fn import cache_user_group
+from memcache_fn import cache_group
+
 
 import webapp2
 import jinja2
@@ -69,61 +73,7 @@ def render_str(template, **params):
 
     		
 
-		
-#
-# Implementation note: 
-# --------------------
-# The application uses memcache to minimize the number 
-# of reads from the datastore
-#
-		
-#  
-# Function: cache_user 
-# --------------------
-# is used for our user tracking system
-#  (e.g. when the front page is generated or we generate
-#   a user page) 
-
-	
-def cache_user(userID, update = False):
-	""" (str, bool) -> UsersDb entity 
-		param userID: string that's used as database key
-        param update: specifies whether the cache should be overwritten
-	"""
-
-	user_result = memcache.get(userID)
-	if user_result is None or update:
-		logging.warning("Cache_user - DB hit")
-		user_result = UsersDb.db_by_id(int(userID))	
-		memcache.set(userID, user_result)
-	return user_result
-
-def cache_user_group(user, update = False): 
-	""" (int, bool) -> Group entities
-		param userID: string that's used as database key
-        param update: specifies whether the cache should be overwritten
-	"""
-	
-	user_group_key = "group_" + str(user.key().id())
-	list_of_users_groups = memcache.get(user_group_key)
-	if list_of_users_groups is None or update: 
-		list_of_users_groups = UserGroup.all().ancestor(group_db_rootkey()).filter("group_keys =",user.key()).fetch(10)
-		memcache.set(user_group_key, list_of_users_groups)
-	return list_of_users_groups
-		
-def cache_group(groupname, update = False): 
-	""" (str, bool) -> Group entities
-		param group_name: string that's used as database key
-        param update: specifies whether the cache should be overwritten
-	"""
-	
-	group_result = memcache.get(groupname)
-	if group_result is None or update: 
-		group_result = UserGroup.all().ancestor(group_db_rootkey()).filter("groupname =",groupname.lower()).get()
-		memcache.set(groupname, group_result)
-	return group_result
-
-		
+			
 #
 # Class: BaseHandler 
 # ------------------
