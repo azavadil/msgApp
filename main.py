@@ -12,6 +12,8 @@ from message_db import message_db_rootkey
 from user_group_db import UserGroup
 from user_group_db import group_db_rootkey
 
+from msgfile_db import MsgFile
+
 from validation_fn import escape_html
 from validation_fn import valid_username
 from validation_fn import valid_password
@@ -64,38 +66,6 @@ def render_str(template, **params):
 #
 
     		
-
-def usermsg_DB_rootkey(group = 'default'):
-	""" 
-		group_DB_rootkey takes a string and returns a key. 
-		The returned key is used as the parent key for the entire 
-		Message class. For this class a parent key isn't strictly 
-		necessary except to ensure consistency. 
-	"""
-	
-	return db.Key.from_path('MsgFile', group)
-		
-#
-# Class: MsgFile
-# --------------
-# The MsgFile class models a one-to-one relationship with 
-# a user. Each user has a message file that is estalished 
-# when a user registered for the application. The relationship
-# is established by storing the MsgFile key as ReferenceProperty
-# on the UsersDb entity for that user. 
-#
-
-class MsgFile(db.Model):
-	messageKeys = db.ListProperty(db.Key, required = True, indexed = False)
-	unreadKeys = db.ListProperty(db.Key, required = True, indexed = False)
-	sentKeys = db.ListProperty(db.Key, required = True, indexed = False)
-	
-	@classmethod
-	def createMsgFile(cls): 
-		msgFile = MsgFile(parent = usermsg_DB_rootkey())
-		msgFile.put()
-		return msgFile
-		
 
 def usernames_DB_rootkey(group = 'default'):
 	""" 
@@ -254,9 +224,9 @@ class BaseHandler(webapp2.RequestHandler):
 		self.user = uid and cache_user(uid)
 		if self.user:
 			userMsgFile = self.user.msg_file
-			self.inbox = sorted(db.get(userMsgFile.messageKeys),\
+			self.inbox = sorted(db.get(userMsgFile.message_keys),\
 				key=lambda x:x.created, reverse=True)
-			self.outbox = sorted(db.get(userMsgFile.sentKeys),\
+			self.outbox = sorted(db.get(userMsgFile.sent_keys),\
 				key=lambda x:x.created, reverse =True)
 		
 		
@@ -502,12 +472,12 @@ class ComposeMessage(BaseHandler):
 			
 			for recipient in recipients: 
 				curr_file = recipient.msg_file
-				curr_file.messageKeys.append(to_store.key())
-				curr_file.unreadKeys.append(to_store.key())
+				curr_file.message_keys.append(to_store.key())
+				curr_file.unread_keys.append(to_store.key())
 				curr_file.put()
 
 			# add the message to the user's sent message list
-			self.user.msg_file.sentKeys.append(to_store.key())
+			self.user.msg_file.sent_keys.append(to_store.key())
 			self.user.msg_file.put()
 			
 			self.redirect("/")
@@ -528,11 +498,11 @@ class ComposeMessage(BaseHandler):
 			
 			for recipientKey in group_qry.group_keys:
 				msg_file = UsersDb.get(recipientKey).msg_file
-				msg_file.messageKeys.append(to_store.key())
-				msg_file.unreadKeys.append(to_store.key())
+				msg_file.message_keys.append(to_store.key())
+				msg_file.unread_keys.append(to_store.key())
 				msg_file.put()
 
-			self.user.msg_file.sentKeys.append(to_store.key())
+			self.user.msg_file.sent_keys.append(to_store.key())
 			self.user.msg_file.put()
 			
 			self.redirect("/")
@@ -557,12 +527,12 @@ class ComposeMessage(BaseHandler):
 			# add the message to their message list
 			# and unread message list
 			msg_file = recipientEntity.msg_file
-			msg_file.messageKeys.append(to_store.key())
-			msg_file.unreadKeys.append(to_store.key())
+			msg_file.message_keys.append(to_store.key())
+			msg_file.unread_keys.append(to_store.key())
 			msg_file.put()
 			
 			# add the message to the user's sent message list
-			self.user.msg_file.sentKeys.append(to_store.key())
+			self.user.msg_file.sent_keys.append(to_store.key())
 			self.user.msg_file.put()
 			
 			self.redirect("/")
@@ -642,8 +612,8 @@ class ViewMessage(BaseHandler):
 			self.error(400)
 			return 
 		
-		if msg.key() in self.user.msg_file.unreadKeys: 
-			self.user.msg_file.unreadKeys.remove(msg.key()) 
+		if msg.key() in self.user.msg_file.unread_keys: 
+			self.user.msg_file.unread_keys.remove(msg.key()) 
 			self.user.msg_file.put() 
 		
 		self.render("viewMsg.html",\
@@ -682,10 +652,10 @@ class ViewMessage(BaseHandler):
 			self.redirect("/newMsg?" + urllib.urlencode(qsParams))
 		
 		if selectedAction == "delete": 
-			if msg.key() in self.user.msg_file.messageKeys: 
-				self.user.msg_file.messageKeys.remove(msg.key())
-			if msg.key() in self.user.msg_file.unreadKeys: 
-				self.user.msg_file.unreadKeys.remove(msg.key()) 
+			if msg.key() in self.user.msg_file.message_keys: 
+				self.user.msg_file.message_keys.remove(msg.key())
+			if msg.key() in self.user.msg_file.unread_keys: 
+				self.user.msg_file.unread_keys.remove(msg.key()) 
 			self.user.msg_file.put()
 			
 			self.redirect("/") 
@@ -949,7 +919,7 @@ class Register(SignupPage):
 		# actions so we can add the user to the UsersDb 
 		# as a transaction
 		# 
-		userEntity = self.registerUser()
+		user_entity = self.registerUser()
 		
 		#
 		# Implementation note: 
@@ -957,15 +927,15 @@ class Register(SignupPage):
 		# If the user already exists, then registerUser
 		# returns None and we do not proceed [test required]
 		#
-		if not userEntity: 
+		if not user_entity: 
 			return
-		newMsgFile = MsgFile.createMsgFile()
-		userEntity.msg_file = newMsgFile
-		userEntity.put()
+		new_msg_file = MsgFile.create_msg_file()
+		user_entity.msg_file = new_msg_file
+		user_entity.put()
 		
-		UserNames.addName(userEntity.user_name)
+		UserNames.addName(user_entity.user_name)
 		
-		self.handler_login(userEntity)
+		self.handler_login(user_entity)
 		## REFACTOR: cache_user(user.key().id())
 		self.redirect("/")
 
