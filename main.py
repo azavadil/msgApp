@@ -14,6 +14,8 @@ from user_group_db import group_db_rootkey
 
 from msgfile_db import MsgFile
 
+from user_names_db import UserNames
+
 from validation_fn import escape_html
 from validation_fn import valid_username
 from validation_fn import valid_password
@@ -67,51 +69,20 @@ def render_str(template, **params):
 
     		
 
-def usernames_DB_rootkey(group = 'default'):
-	""" 
-		group_DB_rootkey takes a string and returns a key. 
-		The returned key is used as the parent key for the entire 
-		Message class. For this class a parent key isn't strictly 
-		necessary except to ensure consistency. 
-	"""
-	return db.Key.from_path('UserNames', group)		
 		
-##
-# Class: UserNames
-# ----------------
-# UserNames is used strictly to maintain a list of user names. 
-# The only purpose of the user names class is to provide fast 
-# access to a complete list of user names which is used to 
-# build the client side trie
-## 
-
-class UserNames(db.Model): 
-	userNameList = db.ListProperty(str, required = True)
-	
-	@classmethod
-	def addName(cls, name): 
-		qry = UserNames.all().get()
-		if not qry: 
-			newEntity = UserNames(parent = usernames_DB_rootkey(), userNameList = [name])
-			newEntity.put()
-		else: 
-			qry.userNameList.append(name)
-			qry.put()
-	
-		
-##
+#
 # Implementation note: 
 # --------------------
 # The application uses memcache to minimize the number 
 # of reads from the datastore
-##
+#
 		
-##  
+#  
 # Function: cache_user 
 # --------------------
 # is used for our user tracking system
-##  (e.g. when the front page is generated or we generate
-##   a user page) 
+#  (e.g. when the front page is generated or we generate
+#   a user page) 
 
 	
 def cache_user(userID, update = False):
@@ -119,6 +90,7 @@ def cache_user(userID, update = False):
 		param userID: string that's used as database key
         param update: specifies whether the cache should be overwritten
 	"""
+
 	user_result = memcache.get(userID)
 	if user_result is None or update:
 		logging.warning("Cache_user - DB hit")
@@ -152,14 +124,14 @@ def cache_group(groupname, update = False):
 	return group_result
 
 		
-##
+#
 # Class: BaseHandler 
 # ------------------
 # BaseHandler is the main request handler that other 
 # handlers inherit from. We put the convience methods 
 # in BaseHandler so other handlers inherit the convience
 # functions. 
-## 
+# 
 							
 class BaseHandler(webapp2.RequestHandler):
     def write(self, *a, **kw):
@@ -241,19 +213,19 @@ class BaseHandler(webapp2.RequestHandler):
 		if flag == 'True': 
 			qry = UserNames.all().get()
 			if qry: 
-				self.triedata = json.dumps(qry.userNameList)
+				self.triedata = json.dumps(qry.user_name_list)
 				self.set_secure_cookie('trie_flag', 'Done')
 			
     def notfound(self):
 		self.error(404)
 		self.write('<h1>404: Note Found</h1> Sorry, my friend, but that page does not exist. ')					
 			
-##
+#
 # Class: MainPage
 # ---------------
 # MainPage handles the landing page and the main user page. 
 # 
-## 	
+# 	
 class MainPage(BaseHandler):
 	def get(self):
 	
@@ -933,7 +905,7 @@ class Register(SignupPage):
 		user_entity.msg_file = new_msg_file
 		user_entity.put()
 		
-		UserNames.addName(user_entity.user_name)
+		UserNames.add_name(user_entity.user_name)
 		
 		self.handler_login(user_entity)
 		## REFACTOR: cache_user(user.key().id())
