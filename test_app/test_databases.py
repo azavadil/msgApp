@@ -33,17 +33,18 @@ class TestDbs(unittest.TestCase):
 		self.testbed.init_datastore_v3_stub()
 		self.testbed.init_memcache_stub()
 
-		test_recipient = users_db.UsersDb( 
+		test_user = users_db.UsersDb( 
 			key_name='Laplace',
 			pw_hash='pwd',
 			parent=users_db.users_db_rootkey()
 			)
-		test_recipient.put()
-		recipient_key = test_recipient.key()
+		test_user.put()
+		
+		self.test_user = test_user
+		recipient_key = test_user.key()
 		
 		fixture_msg = message_db.MessageDb( parent = message_db.message_db_rootkey(),\
 									author = 'anthony',\
-									author_id = 1,\
 									subect = 'test',\
 									body = 'this is a test',\
 									recipient_keys = [recipient_key])
@@ -104,83 +105,116 @@ class TestDbs(unittest.TestCase):
 				'anthony', 
 				pwd='pwd'
 				) 
+				
+	# message_db tests
+	def test_message_db_by_id(self):
+		
+		recipient_key = self.test_user.key()
+		
+		test_msg = message_db.MessageDb( parent = message_db.message_db_rootkey(),\
+									author = 'anthony',\
+									subect = 'test',\
+									body = 'this is a test',\
+									recipient_keys = [recipient_key])
+		test_msg.put()
+		test_msg_id = test_msg.key().id()
+		res = message_db.MessageDb.db_by_id(test_msg_id)
+		self.assertEqual( res.author, 'anthony')
 	
-		print('key: ' + str( test_new_user.key() ) + ", " + str( test_new_user.key().name() ) )
+	
+	# user_group_db tests
+	def test_user_group_db_search_by_name(self): 
+		
+		# create a user
+		test_key = self.test_user.key()
+		
+		test_group = user_group_db.UserGroup(
+			parent=user_group_db.group_db_rootkey(),\
+			key_name='cs_101',\
+			group_keys=[test_key],\
+			group_author=test_key
+			)
+		test_group.put()
+		print('key_name: ' + str(test_group.key().name()) )
+		
+		found = user_group_db.UserGroup.get_by_key_name('cs_101', 
+			parent=user_group_db.group_db_rootkey()
+			)
+		self.assertEqual(found.key().name(), 'cs_101')
+	
+	def test_user_group_my_get_or_insert(self): 
+		
+		ent, created_user = user_group_db.UserGroup.my_get_or_insert(
+			'cs_101', 
+			group_keys=[self.test_user.key()], 
+			group_author=self.test_user.key()
+			)
+		self.assertTrue( created_user )
+		
+		found = user_group_db.UserGroup.get_by_key_name(
+			'cs_101', 
+			parent=user_group_db.group_db_rootkey()
+			)
+		self.assertEqual( found.key(), ent.key() )
+		
+		
+	
+	def test_user_group_my_get_or_insert_exists(self): 
+		
+		# insert cs_101 group 
+		ent = user_group_db.UserGroup( 
+			key_name='cs_101', 
+			parent=user_group_db.group_db_rootkey(), 
+			group_keys=[self.test_user.key()], 
+			group_author=self.test_user.key()
+			)
+		ent.put()
+		
+		ent, created_user = user_group_db.UserGroup.my_get_or_insert(
+			'cs_101', 
+			group_keys=[self.test_user.key()], 
+			group_author=self.test_user.key()
+			)
+		self.assertFalse( created_user )
+		
+	
+	def test_msgfile_db_put(self):
+		
+		test_msg = msgfile_db.MsgFile(
+			parent = msgfile_db.msgfile_db_rootkey(),\
+			message_keys = [self.fix_msg.key()], 
+			unread_keys = [self.fix_msg.key()], 
+			sent_keys = [self.fix_msg.key()]
+			)
 			
-	# # message_db tests
-	# def test_message_db_by_id(self):
+		test_msg.put()
 		
-		# test_recipient = users_db.UsersDb.register('Laplace', 'pwd')
-		# test_recipient.put()
-		# recipient_key = test_recipient.key()
+		query = msgfile_db.MsgFile.all()
+		results = query.fetch(2)
 		
-		# test_msg = message_db.MessageDb( parent = message_db.message_db_rootkey(),\
-									# author = 'anthony',\
-									# author_id = 1,\
-									# subect = 'test',\
-									# body = 'this is a test',\
-									# recipient_keys = [recipient_key])
-		# test_msg.put()
-		# test_msg_id = test_msg.key().id()
-		# res = message_db.MessageDb.db_by_id(test_msg_id)
-		# self.assertEqual( res.author, 'anthony')
-	
-	
-	# def test_user_group_db_db_by_name(self): 
+		self.assertEqual(len(results), 1)
 		
-		# # create a user
-		# test_user = users_db.UsersDb.register('Laplace', 'pwd')
-		# test_user.put()
-		# test_key = test_user.key()
+	def test_msgfile_db_create(self): 
 		
-		# test_group = user_group_db.UserGroup(
-			# parent = user_group_db.group_db_rootkey(),\
-			# groupname = 'cs_101',\
-			# group_keys = [test_key],\
-			# group_author = test_key
-			# )
-		# test_group.put()
-		
-		# found = user_group_db.UserGroup.db_by_name('cs_101')
-		# self.assertEqual(found.groupname, 'cs_101')
-		
-	# def test_msgfile_db_put(self):
-		
-		# test_msg = msgfile_db.MsgFile(
-			# parent = msgfile_db.msgfile_db_rootkey(),\
-			# message_keys = [self.fix_msg.key()], 
-			# unread_keys = [self.fix_msg.key()], 
-			# sent_keys = [self.fix_msg.key()]
-			# )
-			
-		# test_msg.put()
-		
-		# query = msgfile_db.MsgFile.all()
-		# results = query.fetch(2)
-		
-		# self.assertEqual(len(results), 1)
-		
-	# def test_msgfile_db_create(self): 
-		
-		# test_msg = msgfile_db.MsgFile.create_msg_file()
-		# results = msgfile_db.MsgFile.all().fetch(2)
-		# self.assertEqual( len(results), 1)
+		test_msg = msgfile_db.MsgFile.create_msg_file()
+		results = msgfile_db.MsgFile.all().fetch(2)
+		self.assertEqual( len(results), 1)
 		
 		
-	# def test_user_names_db(self): 
+	def test_user_names_db(self): 
 		
-		# test_list = user_names_db.UserNames( user_name_list = ['anthony'] )
-		# test_list.put()
+		test_list = user_names_db.UserNames( user_name_list = ['anthony'] )
+		test_list.put()
 		
-		# results = user_names_db.UserNames.all().fetch(2)
-		# self.assertEqual(len(results), 1)
+		results = user_names_db.UserNames.all().fetch(2)
+		self.assertEqual(len(results), 1)
 
-	# def test_user_names_db_add_name(self): 
+	def test_user_names_db_add_name(self): 
 	
-		# user_names_db.UserNames.add_name('anthony')
+		user_names_db.UserNames.add_name('anthony')
 		
-		# results = user_names_db.UserNames.all().fetch(2)
-		# self.assertEqual(len(results), 1)
+		results = user_names_db.UserNames.all().fetch(2)
+		self.assertEqual(len(results), 1)
 		
 		
 if __name__ == '__main__':

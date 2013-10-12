@@ -49,7 +49,7 @@ def cache_user_group(user, update = False):
 			list of UserGroup entities
 	"""
 	
-	user_group_key = "group_" + str(user.key().id())
+	user_group_key = "group_" + str(user.key().name())
 	list_of_users_groups = memcache.get(user_group_key)
 	if list_of_users_groups is None or update: 
 		list_of_users_groups =\
@@ -75,6 +75,10 @@ def cache_group(groupname, update = False):
 	
 	group_result = memcache.get(groupname)
 	if group_result is None or update: 
-		group_result = UserGroup.all().ancestor(group_db_rootkey()).filter("groupname =",groupname.lower()).get()
+		group_result = UserGroup.get_by_key_name(
+			groupname.lower(), 
+			parent=group_db_rootkey()
+			)
+			
 		memcache.set(groupname, group_result)
 	return group_result

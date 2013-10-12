@@ -27,8 +27,9 @@ class TestMemcache(unittest.TestCase):
 
 		test_group = user_group_db.UserGroup(
 					parent=user_group_db.group_db_rootkey(), 
-					groupname='cs_101', 
-					group_author=test_user
+					key_name='cs_101', 
+					group_keys=[test_user.key()], 
+					group_author=test_user.key()
 					)
 		test_group.put()
 		self.test_group = test_group
@@ -44,18 +45,23 @@ class TestMemcache(unittest.TestCase):
 		result = memcache_fn.cache_user( user_name )
 		self.assertEquals( self.test_user.key(), result.key()) 
 	
+	def test_cache_user_group_search(self): 
+		
+		group_list = memcache_fn.cache_user_group(self.test_user)
+		self.assertEquals( len(group_list), 1)
+
 	def test_cache_user_group(self): 
 		
 		group_list = memcache_fn.cache_user_group(self.test_user)
-		self.assertEquals( len(group_list), 0)
-
+		self.assertEqual( 'cs_101',group_list[0].key().name() )
+		
 	def test_cache_group(self):
 		
 		result = memcache_fn.cache_group(groupname='cs_101',\
 										update=True
 										)
 										
-		self.assertEqual( result.groupname, self.test_group.groupname )
+		self.assertEqual( result.key().name(), self.test_group.key().name() )
 		
 		
 		 

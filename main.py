@@ -403,7 +403,7 @@ class ComposeMessage(BaseHandler):
 			
 			self.redirect("/")
 			
-			
+		
 		group_qry = UserGroup.all().filter("groupname =", msg_recipient).get()	
 		if group_qry: 
 			
@@ -591,16 +591,16 @@ class ViewGroup(BaseHandler):
 			self.error(400)
 			return
 		
-		groupsUserBelongsTo = cache_user_group(self.user); 
+		groups_user_belongs_to = cache_user_group(self.user); 
 			
 		self.render("viewGroup.html",\
-				groups = groupsUserBelongsTo,\
-				numMsgs = len(self.inbox),\
-				numSentMsgs = len(self.outbox))
+				groups=groups_user_belongs_to,\
+				numMsgs=len(self.inbox),\
+				numSentMsgs=len(self.outbox))
 	
 	def post(self): 
 		
-		groupsUserBelongsTo = cache_user_group(self.user)
+		groups_user_belongs_to = cache_user_group(self.user)
 		input_groupname = self.request.get("groupname")
 		selected_action = self.request.get("selectedAction") 		
 		
@@ -609,11 +609,11 @@ class ViewGroup(BaseHandler):
 		if not valid_groupname(input_groupname): 
 			error_msg = "Please enter a valid groupname. Groupname must be lowercase/uppercase/digit and at least 1 underscore."
 			self.render("viewGroup.html",\
-						user_input_groupname = input_groupname,\
-						groups = groupsUserBelongsTo,\
-						numMsgs = len(self.inbox),\
-						numSentMsgs = len(self.outbox),\
-						error = error_msg)
+						user_input_groupname=input_groupname,\
+						groups=groups_user_belongs_to,\
+						numMsgs=len(self.inbox),\
+						numSentMsgs=len(self.outbox),\
+						error=error_msg)
 			return
 		
 		##
@@ -626,22 +626,22 @@ class ViewGroup(BaseHandler):
 		## 
 			
 		if selected_action == "makeGroup": 
-			qry = cache_group(input_groupname) 
-			if qry: 
+			ent, group_created = UserGroup.my_get_or_insert(
+				input_groupname.lower(), 
+				group_keys=[self.user.key()], 
+				group_author=self.user.key()
+				)
+				
+			if not group_created: 
 				error_msg = "That group already exists" 
 				self.render("viewGroup.html",\
-							user_input_groupname = input_groupname,\
-							groups = groupsUserBelongsTo,\
-							numMsgs = len(self.inbox),\
-							numSentMsgs = len(self.outbox),\
-							error = error_msg)
+							user_input_groupname=input_groupname,\
+							groups=groups_user_belongs_to,\
+							numMsgs=len(self.inbox),\
+							numSentMsgs=len(self.outbox),\
+							error=error_msg)
 			else:
-				to_store = UserGroup(parent = group_db_rootkey(),\
-									groupname = input_groupname.lower(),\
-									group_keys = [self.user.key()],\
-									group_author = self.user.key())
-				to_store.put()
-				cache_group(input_groupname, update=True)
+				cache_group(input_groupname.lower(), update=True)
 				cache_user_group(self.user, update=True)
 				self.redirect("/group")
 		
@@ -650,11 +650,11 @@ class ViewGroup(BaseHandler):
 			if not qry: 
 				error_msg = "That group doesn't exist" 
 				self.render("viewGroup.html",\
-							user_input_groupname = input_groupname,\
-							groups = groupsUserBelongsTo,\
-							numMsgs = len(self.inbox),\
-							numSentMsgs = len(self.outbox),\
-							error = error_msg)
+							user_input_groupname=input_groupname,\
+							groups=groups_user_belongs_to,\
+							numMsgs=len(self.inbox),\
+							numSentMsgs=len(self.outbox),\
+							error=error_msg)
 			else: 
 				qry.group_keys.append(self.user.key())
 				qry.put()
@@ -668,7 +668,7 @@ class ViewGroup(BaseHandler):
 				error_msg = "That group doesn't exist" 
 				self.render("viewGroup.html",\
 							user_input_groupname = input_groupname,\
-							groups = groupsUserBelongsTo,\
+							groups = groups_user_belongs_to,\
 							numMsgs = len(self.inbox),\
 							numSentMsgs = len(self.outbox),\
 							error = error_msg)
@@ -677,7 +677,7 @@ class ViewGroup(BaseHandler):
 					error_msg = "You don't belong to that group" 
 					self.render("viewGroup.html",\
 								user_input_groupname = input_groupname,\
-								groups = groupsUserBelongsTo,\
+								groups = groups_user_belongs_to,\
 								numMsgs = len(self.inbox),\
 								numSentMsgs = len(self.outbox),\
 								error = error_msg)
@@ -694,7 +694,7 @@ class ViewGroup(BaseHandler):
 				error_msg = "That group doesn't exist" 
 				self.render("viewGroup.html",\
 							user_input_groupname = input_groupname,\
-							groups = groupsUserBelongsTo,\
+							groups = groups_user_belongs_to,\
 							numMsgs = len(self.inbox),\
 							numSentMsgs = len(self.outbox),\
 							error = error_msg)
@@ -710,7 +710,7 @@ class ViewGroup(BaseHandler):
 				error_msg = "Only group author can delete group"
 				self.render("viewGroup.html",\
 							user_input_groupname = input_groupname,\
-							groups = groupsUserBelongsTo,\
+							groups = groups_user_belongs_to,\
 							numMsgs = len(self.inbox),\
 							numSentMsgs = len(self.outbox),\
 							error = error_msg)
