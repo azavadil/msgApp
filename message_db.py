@@ -22,7 +22,6 @@ class MessageDb(db.Model):
     ##required = True, will raise an exception if we try to create 
     ##content without a title
 	author = db.StringProperty(required = True)
-	author_id = db.IntegerProperty(required = True)
 	subject = db.StringProperty(required = False)
 	body = db.TextProperty(required = False, indexed = False)
 	recipient_keys = db.ListProperty(db.Key, required = True, indexed = False) 

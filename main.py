@@ -385,8 +385,7 @@ class ComposeMessage(BaseHandler):
 			recipient_keys = db.Query(UsersDb, keys_only=True)
 			
 			to_store = MessageDb(parent = message_db_rootkey(),\
-							author = self.user.user_name,\
-							author_id = self.user.key().id(),\
+							author = self.user.key().name(),\
 							subject = msg_subject,\
 							body = msg_body,\
 							recipient_keys = list(recipient_keys))
@@ -410,8 +409,7 @@ class ComposeMessage(BaseHandler):
 			
 			# create a new Message entity
 			to_store = MessageDb(parent = message_db_rootkey(),\
-							author = self.user.user_name,\
-							author_id = self.user.key().id(),\
+							author = self.user.key().name(),\
 							subject = msg_subject,\
 							body = msg_body,\
 							recipient_keys = group_qry.group_keys)
@@ -436,8 +434,7 @@ class ComposeMessage(BaseHandler):
 		if recipientEntity:
 			# create a new Message entity
 			to_store = MessageDb(parent = message_db_rootkey(),\
-							author = self.user.user_name,\
-							author_id = self.user.key().id(),\
+							author = self.user.key().name(),\
 							subject = msg_subject,\
 							body = msg_body, 
 							recipient_keys = [recipientEntity.key()])
@@ -530,7 +527,7 @@ class ViewMessage(BaseHandler):
 		# [test required]
 		##
 		
-		if self.user.key() not in msg.recipient_keys and self.user.key().id() != msg.author_id: 
+		if self.user.key() not in msg.recipient_keys and self.user.key().name() != msg.author: 
 			self.error(400)
 			return 
 		
