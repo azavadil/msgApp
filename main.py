@@ -799,66 +799,36 @@ class SignupPage(BaseHandler):
 			
 class Register(SignupPage):
 
-	# 
-	# Implementation note: 
-	# -------------------
-	# Creation of a new user is kept separate from 
-	# the creation of user's message file and insertion
-	# of the user into UserNames. These actions are separated
-	# so we can use a transaction to ensure that we don't have a
-	# collision if two users try to create the same name simultaneously
-	#
-
-	@db.transactional()
-	def registerUser(self):
-		# make sure the user doesn't already exist
-		# username in self.username is a field in the signup page. 
-		user = UsersDb.db_by_name(self.input_username)
-		if user:
-			msg = 'That user already exists.'
-			self.render('signupPage.html', fallback_error = msg, isSignupPage = True)
-			return None
-		else:
-			##
-			# Implementation note: 
-			# --------------------
-			# MsgFile.register() works like a factory creating 
-			# a new MsgFile entity. The new entity is used to 
-			# establish a one-to-one relationship between the 
-			# MsgFile and the user
-			## 
-			
-			user = UsersDb.register(self.input_username, self.input_password)
-			user.put()
-			return user
 	
 	def done(self):
 		
 		#
 		# Implementation note: 
 		# --------------------
-		# We create the user separately from the other 
-		# actions so we can add the user to the UsersDb 
-		# as a transaction
-		# 
-		user_entity = self.registerUser()
+		# If the user already exists, then my_get_or_insert
+		# returns a tuple with false as the second value
+		# TODO: [test required]
+		 
+		user_entity, user_created = UsersDb.my_get_or_insert(
+			self.input_username, 
+			pwd=self.input_password
+			)
 		
-		#
-		# Implementation note: 
-		# --------------------
-		# If the user already exists, then registerUser
-		# returns None and we do not proceed [test required]
-		#
-		if not user_entity: 
-			return
+		if not user_created: 
+			self.render('signupPage.html',
+				fallback_error='User already exists'
+				)	
+			
 		new_msg_file = MsgFile.create_msg_file()
 		user_entity.msg_file = new_msg_file
 		user_entity.put()
 		
-		UserNames.add_name(user_entity.user_name)
+		logging.warning('key: ' + str(user_entity.key()) )
+		
+		UserNames.add_name(user_entity.key().name())
 		
 		self.handler_login(user_entity)
-		## REFACTOR: cache_user(user.key().id())
+		# TODO: cache_user(user.key().id())
 		self.redirect("/")
 
 		
