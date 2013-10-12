@@ -40,8 +40,8 @@ class TestMemcache(unittest.TestCase):
 		
 	def test_cache_user(self):
 	
-		uid = self.test_user.key().id()
-		result = memcache_fn.cache_user( str(uid) )
+		user_name = self.test_user.key().name()
+		result = memcache_fn.cache_user( user_name )
 		self.assertEquals( self.test_user.key(), result.key()) 
 	
 	def test_cache_user_group(self): 

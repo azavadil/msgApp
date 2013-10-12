@@ -14,7 +14,7 @@ from google.appengine.api import memcache
 #   a user page) 
 
 	
-def cache_user(user_id, update = False):
+def cache_user(user_name, update = False):
 	""" (str, bool) -> UsersDb entity 
 		
 		Retrieves UserDb entity from memcache if available, from
@@ -28,11 +28,11 @@ def cache_user(user_id, update = False):
 			A UsersDb entity
 	"""
 
-	user_result = memcache.get(user_id)
+	user_result = memcache.get(user_name)
 	if user_result is None or update:
 		logging.warning("Cache_user - DB hit")
-		user_result = UsersDb.db_by_id(int(user_id))	
-		memcache.set(user_id, user_result)
+		user_result = UsersDb.db_by_name(str(user_name))	
+		memcache.set(user_name, user_result)
 	return user_result
 
 def cache_user_group(user, update = False): 

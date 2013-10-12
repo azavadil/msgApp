@@ -119,7 +119,7 @@ class BaseHandler(webapp2.RequestHandler):
     	return cookie_val and check_secure_val(cookie_val)
 
     def handler_login(self, user):
-		self.set_secure_cookie('user_id', str(user.key().id()))
+		self.set_secure_cookie('user_name', str(user.key().name()))
 		self.set_secure_cookie('trie_flag', 'True')
 
     def handler_logout(self):
@@ -128,7 +128,7 @@ class BaseHandler(webapp2.RequestHandler):
            cookie to be blank
         """
 		self.response.headers.add_header('Set-Cookie', 'trie_flag=; Path=/')
-		self.response.headers.add_header('Set-Cookie', 'user_id=; Path=/')
+		self.response.headers.add_header('Set-Cookie', 'user_name=; Path=/')
 		
     def initialize(self, *a, **kw):
 		"""
@@ -142,8 +142,8 @@ class BaseHandler(webapp2.RequestHandler):
 		   cookie is valid
         """
 		webapp2.RequestHandler.initialize(self, *a, **kw)
-		uid = self.read_secure_cookie('user_id')				## return string value of user ID 
-		self.user = uid and cache_user(uid)
+		user_name = self.read_secure_cookie('user_name')		## return string value of user name 
+		self.user = user_name and cache_user(user_name)
 		if self.user:
 			userMsgFile = self.user.msg_file
 			self.inbox = sorted(db.get(userMsgFile.message_keys),\
@@ -823,8 +823,10 @@ class Register(SignupPage):
 		user_entity.msg_file = new_msg_file
 		user_entity.put()
 		
-		logging.warning('key: ' + str(user_entity.key()) )
-		
+		logging.warning('user_entity: ' + str(user_entity.key()) )
+		logging.warning('user_created: ' + str(user_created) )
+		logging.warning('user_entity.key().name(): ' + user_entity.key().name())
+				
 		UserNames.add_name(user_entity.key().name())
 		
 		self.handler_login(user_entity)
