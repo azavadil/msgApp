@@ -377,42 +377,30 @@ class ComposeMessage(BaseHandler):
 		msg_subject = self.request.get("subject")
 		msg_body = self.request.get("body")
 		
+		q_params = {}
+		q_params['recipient'] = msg_recipient 
+		q_params['subject'] = msg_subject
+		q_params['body'] = msg_body
+		q_params['user_key'] = self.user.key()
+		
 		
 		# check if the message is a global broadcast
 		if msg_recipient.lower() == "all": 
-			## NTD
-			recipients = db.Query(UsersDb)
-			recipient_keys = db.Query(UsersDb, keys_only=True)
 			
-			to_store = MessageDb(parent = message_db_rootkey(),\
-							author = self.user.key().name(),\
-							subject = msg_subject,\
-							body = msg_body,\
-							recipient_keys = list(recipient_keys))
-			to_store.put()
-			
-			for recipient in recipients: 
-				curr_file = recipient.msg_file
-				curr_file.message_keys.append(to_store.key())
-				curr_file.unread_keys.append(to_store.key())
-				curr_file.put()
-
-			# add the message to the user's sent message list
-			self.user.msg_file.sent_keys.append(to_store.key())
-			self.user.msg_file.put()
-			
+			# send to taskqueue to manage distribution 
+			taskqueue.add( params=q_params )
 			self.redirect("/")
-			
-		
+					
 		group_qry = UserGroup.all().filter("groupname =", msg_recipient).get()	
 		if group_qry: 
 			
 			# create a new Message entity
-			to_store = MessageDb(parent = message_db_rootkey(),\
-							author = self.user.key().name(),\
-							subject = msg_subject,\
-							body = msg_body,\
-							recipient_keys = group_qry.group_keys)
+			to_store = MessageDb(
+							parent=message_db_rootkey(),\
+							author=self.user.key().name(),\
+							subject=msg_subject,\
+							body=msg_body,\
+							recipient_keys=group_qry.group_keys)
 		
 			to_store.put()
 			
@@ -820,10 +808,7 @@ class Register(SignupPage):
 		user_entity.msg_file = new_msg_file
 		user_entity.put()
 		
-		logging.warning('user_entity: ' + str(user_entity.key()) )
-		logging.warning('user_created: ' + str(user_created) )
-		logging.warning('user_entity.key().name(): ' + user_entity.key().name())
-				
+					
 		UserNames.add_name(user_entity.key().name())
 		
 		self.handler_login(user_entity)
@@ -845,8 +830,36 @@ class LogoutPage(BaseHandler):
 		self.handler_logout()
 		self.redirect("/")
 		
+class AllManager(webapp2.RequestHandler): 
+	
+	def post(self): 
 		
+		logging.warning('task queue triggered')
+		recipients = db.Query(UsersDb)
+		recipient_keys = db.Query(UsersDb, keys_only=True)
+			
+		user_key = self.request.get('user_key')
+		curr_user = UsersDb.get(user_key)
+			
+		to_store = MessageDb(
+			parent=message_db_rootkey(),\
+			author=curr_user.key().name(),\
+			subject=self.request.get('subject'),\
+			body=self.request.get('body'),\
+			recipient_keys=list(recipient_keys)
+			)
+		to_store.put()
 		
+		for recipient in recipients: 
+			curr_file = recipient.msg_file
+			curr_file.message_keys.append(to_store.key())
+			curr_file.unread_keys.append(to_store.key())
+			curr_file.put()
+
+		# add the message to the user's sent message list
+		curr_user.msg_file.sent_keys.append(to_store.key())
+		curr_user.msg_file.put()
+					
 #
 # Implementation note: 
 # -------------------
@@ -865,4 +878,5 @@ app = webapp2.WSGIApplication([('/', MainPage),
 								('/sent', SentPage), 
 								('/logout',LogoutPage),
 								( MSGKEY_RE, ViewMessage),
+								( '/_ah/queue/default', AllManager), 
 								],debug = True)

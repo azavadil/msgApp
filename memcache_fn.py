@@ -57,7 +57,7 @@ def cache_user_group(user, update = False):
 			.filter("group_keys =",user.key()).fetch(10)
 		memcache.set(user_group_key, list_of_users_groups)
 	return list_of_users_groups
-		
+		 
 def cache_group(groupname, update = False): 
 	""" (str, bool) -> Group entity
 		
