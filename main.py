@@ -2,8 +2,6 @@ import sys
 import os
 sys.path.append(os.path.join(os.path.dirname(__file__), 'lib'))
 
-from password_fn import make_secure_val
-from password_fn import check_secure_val
 
 from users_db import UsersDb
 from message_db import MessageDb
@@ -58,120 +56,6 @@ from collections import OrderedDict
 #
 
 		
-#
-# Class: MainPage
-# ---------------
-# MainPage handles the landing page and the main user page. 
-# 
-# 	
-class MainPage(BaseHandler):
-	def get(self):
-	
-		#
-		# Implementation note: 
-		# -------------------
-		# There are three cases. The control flow is such that
-		# self.triedata will be populated with data only one time.
-		# If the user is not logged in, we render the summaryPanel 
-		# without data. 
-		# 
-		# If the user is logged in we check for trie data (only 
-		# occurs once) and include the trie data. 		
-		#
-		
-		if not self.user: 
-			self.render("summaryPanel.html")
-		elif self.triedata:
-			self.render("summaryPanel.html",\
-						num_msgs=len(self.inbox),\
-						num_sent_msgs=len(self.outbox),\
-						msgs=self.inbox[:10],\
-						user=self.user,\
-						pageNum='0',\
-						data=self.triedata)
-		else: 
-			self.render("summaryPanel.html",\
-						num_msgs=len(self.inbox),\
-						num_sent_msgs=len(self.outbox),\
-						msgs=self.inbox[:10],\
-						pageNum='0',\
-						user=self.user)
-
-	#
-	# Implementation note: 
-	# -------------------
-	# The front page receives a post request when an 
-	# existing user logs in. The application doesn't 
-	# have a separate login URL. Rather, the signin 
-	# panel is on the front page and collapses once 
-	# the user has logged in. 
-	# 
-	# The front page can also receive a post request
-	# when the user wants to navigate to newer/older
-	# messages. It's easy to distinguish between the 
-	# two cases as only a logged in user can navigate
-	# messages
-	#  
-	
-	def post(self):
-
-		if not self.user: 
-	
-			input_username = self.request.get('username')
-			input_password = self.request.get('password')
-		
-			#
-			# Implementation note: 
-			# --------------------
-			# db_login returns the user id and the empty string 
-			# if the password validates, the user and the msg 
-			# "Username and password don't match" if the user 
-			# was found but the password doesn't validate, and 
-			# "Invalid login" otherwise
-			#
-			user, pw_msg = UsersDb.db_login(input_username,input_password)
-			
-			if user and pw_msg == '': 
-				self.handler_login(user)
-				self.redirect("/")
-			else:
-				self.render('base.html',\
-						name_provided = input_username,\
-						password_error = pw_msg) 
-		else: 
-			#
-			# Impementation note: 
-			# -------------------
-			# Defensive programming, before calling int() 
-			# validate we don't get none [test required] 
-			# 
-			pageNum = self.request.get('hiddenPageNum'); 
-			if not pageNum.isdigit() or pageNum is None: 
-				pageNum = 0
-			else: 
-				pageNum = int(self.request.get('hiddenPageNum'))
-			
-			selectedAction = self.request.get('selectedAction')
-			
-			if selectedAction == 'Older': 
-				if (pageNum + 1) * 10 < len(self.inbox): 
-					pageNum += 1 
-			else:  				# selected action is 'Newer' 
-				if (pageNum - 1) >= 0: 
-					pageNum -= 1
-			startIndex = pageNum * 10 
-			endIndex = startIndex + 10
-			
-			
-			self.render("summaryPanel.html",\
-						num_msgs=len(self.inbox),\
-						num_sent_msgs=len(self.outbox),\
-						msgs=self.inbox[startIndex:endIndex],\
-						user=self.user,\
-						pageNum=str(pageNum)
-						)
-			
-			
 			
 #
 # Class: SentPage
