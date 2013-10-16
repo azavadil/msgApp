@@ -24,6 +24,7 @@ from memcache_fn import cache_user_group
 from memcache_fn import cache_group
 
 from base_handler import BaseHandler
+from main_page import MainPage
 
 import webapp2
 import logging
