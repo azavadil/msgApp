@@ -11,7 +11,6 @@ from password_fn import make_secure_val
 from password_fn import check_secure_val
 
 
-
 template_dir = os.path.join(os.path.dirname(__file__), 'templates')
 
 jinja_env = jinja2.Environment(loader = jinja2.FileSystemLoader(template_dir),\
