@@ -33,7 +33,6 @@ import logging
 import time
 import markdown
 import pickle
-import json
 import urllib
 
 from google.appengine.ext import db
@@ -45,7 +44,6 @@ from collections import OrderedDict
 
 template_dir = os.path.join(os.path.dirname(__file__), 'templates')
 
-
 jinja_env = jinja2.Environment(loader = jinja2.FileSystemLoader(template_dir),\
 								autoescape = True, extensions=['jinja2.ext.autoescape'])
 def render_str(template, **params):
@@ -53,27 +51,6 @@ def render_str(template, **params):
 	t = jinja_env.get_template(template)
 	return t.render(params)
 
-
-					
-#
-# Implementation note: 
-# -------------------
-# The app uses 5 database models. 
-#
-# UsersDb: 		models a single user. Used for managing 
-#				a secure user login system
-# Messages: 	models a single message
-# UserGroup: 	models a group of users. 
-# MsgFile: 		models a relationship between a user and the 	
-#				user's messages. Each MsgFile belongs to one user
-# UserNames: 	models a list of all the users. Used to rapidly provide
-#				a name list for transmital to client to build the 
-#				an autocompletion trie
-#
-
-    		
-
-			
 #
 # Class: BaseHandler 
 # ------------------
@@ -147,17 +124,19 @@ class BaseHandler(webapp2.RequestHandler):
 		if self.user:
 			userMsgFile = self.user.msg_file
 			self.inbox = sorted(db.get(userMsgFile.message_keys),\
-				key=lambda x:x.created, reverse=True)
+				key=lambda x:x.created, reverse=True
+				)
 			self.outbox = sorted(db.get(userMsgFile.sent_keys),\
-				key=lambda x:x.created, reverse =True)
+				key=lambda x:x.created, reverse =True
+				)
 		
 		
-		## 
+		# 
 		# Implementation note: 
 		# -------------------
 		# The app will only execute the conditional once
 		# so the trie data is only sent once. 
-		##
+		#
 		self.triedata = None
 		flag = self.read_secure_cookie('trie_flag')
 		if flag == 'True': 
@@ -169,7 +148,25 @@ class BaseHandler(webapp2.RequestHandler):
     def notfound(self):
 		self.error(404)
 		self.write('<h1>404: Note Found</h1> Sorry, my friend, but that page does not exist. ')					
-			
+
+
+#
+# Implementation note: 
+# -------------------
+# The app uses 5 database models. 
+#
+# UsersDb: 		models a single user. Used for managing 
+#				a secure user login system
+# Messages: 	models a single message
+# UserGroup: 	models a group of users. 
+# MsgFile: 		models a relationship between a user and the 	
+#				user's messages. Each MsgFile belongs to one user
+# UserNames: 	models a list of all the users. Used to rapidly provide
+#				a name list for transmital to client to build the 
+#				an autocompletion trie
+#
+
+		
 #
 # Class: MainPage
 # ---------------
@@ -195,19 +192,19 @@ class MainPage(BaseHandler):
 			self.render("summaryPanel.html")
 		elif self.triedata:
 			self.render("summaryPanel.html",\
-						numMsgs = len(self.inbox),\
-						numSentMsgs = len(self.outbox),\
-						msgs = self.inbox[:10],\
-						user = self.user,\
-						pageNum = '0',\
-						data = self.triedata)
+						num_msgs=len(self.inbox),\
+						num_sent_msgs=len(self.outbox),\
+						msgs=self.inbox[:10],\
+						user=self.user,\
+						pageNum='0',\
+						data=self.triedata)
 		else: 
 			self.render("summaryPanel.html",\
-						numMsgs = len(self.inbox),\
-						numSentMsgs = len(self.outbox),\
-						msgs = self.inbox[:10],\
-						pageNum = '0',\
-						user = self.user)
+						num_msgs=len(self.inbox),\
+						num_sent_msgs=len(self.outbox),\
+						msgs=self.inbox[:10],\
+						pageNum='0',\
+						user=self.user)
 
 	#
 	# Implementation note: 
@@ -276,11 +273,12 @@ class MainPage(BaseHandler):
 			
 			
 			self.render("summaryPanel.html",\
-						numMsgs = len(self.inbox),\
-						numSentMsgs = len(self.outbox),\
-						msgs = self.inbox[startIndex:endIndex],\
-						user = self.user,\
-						pageNum = str(pageNum))
+						num_msgs=len(self.inbox),\
+						num_sent_msgs=len(self.outbox),\
+						msgs=self.inbox[startIndex:endIndex],\
+						user=self.user,\
+						pageNum=str(pageNum)
+						)
 			
 			
 			
@@ -298,11 +296,12 @@ class SentPage(BaseHandler):
 			return 
 		else:
 			self.render("summaryPanel.html",\
-						numMsgs = len(self.inbox),\
-						numSentMsgs = len(self.outbox),\
-						msgs = self.outbox,\
-						user = self.user,\
-						pageNum = '0')
+						num_msgs=len(self.inbox),\
+						num_sent_msgs=len(self.outbox),\
+						msgs=self.outbox,\
+						user=self.user,\
+						pageNum= '0'
+						)
 	def post(self):
 
 		if not self.user: 
@@ -325,11 +324,12 @@ class SentPage(BaseHandler):
 			
 			
 			self.render("summaryPanel.html",\
-						numMsgs = len(self.inbox),\
-						numSentMsgs = len(self.outbox),\
-						msgs = self.outbox[startIndex:endIndex],\
-						user = self.user,\
-						pageNum = str(pageNum))
+						num_msgs=len(self.inbox),\
+						num_sent_msgs=len(self.outbox),\
+						msgs=self.outbox[startIndex:endIndex],\
+						user=self.user,\
+						pageNum=str(pageNum)
+						)
 			
 #
 # Class: ComposeMessage
@@ -356,15 +356,17 @@ class ComposeMessage(BaseHandler):
 		# 
 		if self.request.get('msgAuthor'): 
 			self.render("composeMsg.html",\
-				numMsgs = len(self.inbox),\
-				numSentMsgs = len(self.outbox),\
-				recipient = self.request.get('msgAuthor'),\
-				subject = "RE: " + self.request.get('msgSubject'))
+				num_msgs=len(self.inbox),\
+				num_sent_msgs=len(self.outbox),\
+				recipient=self.request.get('msgAuthor'),\
+				subject="RE: " + self.request.get('msgSubject')
+				)
 		else: 
 			
 			self.render("composeMsg.html",\
-				numMsgs = len(self.inbox),\
-				numSentMsgs = len(self.outbox))
+				num_msgs=len(self.inbox),\
+				num_sent_msgs=len(self.outbox)
+				)
 		
 	def post(self,path):
 		if not self.user:
@@ -421,11 +423,12 @@ class ComposeMessage(BaseHandler):
 		
 		if recipientEntity:
 			# create a new Message entity
-			to_store = MessageDb(parent = message_db_rootkey(),\
-							author = self.user.key().name(),\
-							subject = msg_subject,\
-							body = msg_body, 
-							recipient_keys = [recipientEntity.key()])
+			to_store = MessageDb(parent=message_db_rootkey(),\
+							author=self.user.key().name(),\
+							subject=msg_subject,\
+							body=msg_body, 
+							recipient_keys=[recipientEntity.key()]
+							)
 				
 			# store the message object
 			to_store.put()
@@ -450,12 +453,13 @@ class ComposeMessage(BaseHandler):
 			# pass the error message to the render fuction
 			# the function then passes 'error' to the form
 			self.render("composeMsg.html",\
-						recipient = msg_recipient,\
-						subject = msg_subject,\
-						body = msg_body,\
-						numMsgs = len(self.inbox),\
-						numSentMsgs = len(self.outbox),\
-						fallback_error=error)
+						recipient=msg_recipient,\
+						subject=msg_subject,\
+						body=msg_body,\
+						num_msgs=len(self.inbox),\
+						num_sent_msgs=len(self.outbox),\
+						fallback_error=error
+						)
 
 
 #
@@ -523,12 +527,13 @@ class ViewMessage(BaseHandler):
 			self.user.msg_file.unread_keys.remove(msg.key()) 
 			self.user.msg_file.put() 
 		
+		# TODO: escape html
 		self.render("viewMsg.html",\
-					message_HTML = markdown.markdown(msg.body),\
-					message = msg,\
-					numMsgs = len(self.inbox),\
-					numSentMsgs = len(self.outbox),\
-					user = self.user)
+					message_HTML=markdown.markdown(msg.body),\
+					message=msg,\
+					num_msgs=len(self.inbox),\
+					num_sent_msgs=len(self.outbox),\
+					user= self.user)
 	
 	
 	
@@ -583,8 +588,8 @@ class ViewGroup(BaseHandler):
 			
 		self.render("viewGroup.html",\
 				groups=groups_user_belongs_to,\
-				numMsgs=len(self.inbox),\
-				numSentMsgs=len(self.outbox))
+				num_msgs=len(self.inbox),\
+				num_sent_msgs=len(self.outbox))
 	
 	def post(self): 
 		
@@ -599,8 +604,8 @@ class ViewGroup(BaseHandler):
 			self.render("viewGroup.html",\
 						user_input_groupname=input_groupname,\
 						groups=groups_user_belongs_to,\
-						numMsgs=len(self.inbox),\
-						numSentMsgs=len(self.outbox),\
+						num_msgs=len(self.inbox),\
+						num_sent_msgs=len(self.outbox),\
 						error=error_msg)
 			return
 		
@@ -625,8 +630,8 @@ class ViewGroup(BaseHandler):
 				self.render("viewGroup.html",\
 							user_input_groupname=input_groupname,\
 							groups=groups_user_belongs_to,\
-							numMsgs=len(self.inbox),\
-							numSentMsgs=len(self.outbox),\
+							num_msgs=len(self.inbox),\
+							num_sent_msgs=len(self.outbox),\
 							error=error_msg)
 			else:
 				cache_group(input_groupname.lower(), update=True)
@@ -640,8 +645,8 @@ class ViewGroup(BaseHandler):
 				self.render("viewGroup.html",\
 							user_input_groupname=input_groupname,\
 							groups=groups_user_belongs_to,\
-							numMsgs=len(self.inbox),\
-							numSentMsgs=len(self.outbox),\
+							num_msgs=len(self.inbox),\
+							num_sent_msgs=len(self.outbox),\
 							error=error_msg)
 			else: 
 				qry.group_keys.append(self.user.key())
@@ -657,8 +662,8 @@ class ViewGroup(BaseHandler):
 				self.render("viewGroup.html",\
 							user_input_groupname = input_groupname,\
 							groups = groups_user_belongs_to,\
-							numMsgs = len(self.inbox),\
-							numSentMsgs = len(self.outbox),\
+							num_msgs = len(self.inbox),\
+							num_sent_msgs = len(self.outbox),\
 							error = error_msg)
 			else: 
 				if self.user.key() not in qry.group_keys: 
@@ -666,8 +671,8 @@ class ViewGroup(BaseHandler):
 					self.render("viewGroup.html",\
 								user_input_groupname = input_groupname,\
 								groups = groups_user_belongs_to,\
-								numMsgs = len(self.inbox),\
-								numSentMsgs = len(self.outbox),\
+								num_msgs = len(self.inbox),\
+								num_sent_msgs = len(self.outbox),\
 								error = error_msg)
 				else:
 					qry.group_keys.remove(self.user.key())
@@ -683,8 +688,8 @@ class ViewGroup(BaseHandler):
 				self.render("viewGroup.html",\
 							user_input_groupname = input_groupname,\
 							groups = groups_user_belongs_to,\
-							numMsgs = len(self.inbox),\
-							numSentMsgs = len(self.outbox),\
+							num_msgs = len(self.inbox),\
+							num_sent_msgs = len(self.outbox),\
 							error = error_msg)
 			##
 			# Implementation note: 
@@ -699,8 +704,8 @@ class ViewGroup(BaseHandler):
 				self.render("viewGroup.html",\
 							user_input_groupname = input_groupname,\
 							groups = groups_user_belongs_to,\
-							numMsgs = len(self.inbox),\
-							numSentMsgs = len(self.outbox),\
+							num_msgs = len(self.inbox),\
+							num_sent_msgs = len(self.outbox),\
 							error = error_msg)
 			else: 
 				## we have a problem here in that we need to update the cache for all members of the group
