@@ -1,3 +1,20 @@
+#
+# Implementation note: 
+# -------------------
+# The app uses 5 database models. 
+#
+# UsersDb: 		models a single user. Used for managing 
+#				a secure user login system
+# Messages: 	models a single message
+# UserGroup: 	models a group of users. 
+# MsgFile: 		models a relationship between a user and the 	
+#				user's messages. Each MsgFile belongs to one user
+# UserNames: 	models a list of all the users. Used to rapidly provide
+#				a name list for transmital to client to build the 
+#				an autocompletion trie
+#
+
+
 import sys
 sys.path.append( 'G:\\msgApp\\msg' )
 

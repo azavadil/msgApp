@@ -8,6 +8,7 @@ import unittest
 
 from main_page import MainPage	   
 from signup_page import Register 
+from sent_page import SentPage
 from google.appengine.ext import db
 from google.appengine.ext import testbed
 
@@ -18,7 +19,8 @@ class HandlerTest(unittest.TestCase):
 	def setUp(self):
 		# Create a WSGI application.
 		app = webapp2.WSGIApplication([('/', MainPage), 
-			('/signup', Register)
+			('/signup', Register), 
+			('/sent', SentPage),  
 			])
         # Wrap the app with WebTest TestApp
 		self.testapp = webtest.TestApp(app)
@@ -49,4 +51,6 @@ class HandlerTest(unittest.TestCase):
 		redirect = response.follow()
 		self.assertEqual(redirect.status_int, 200)
 		
-		
+	def test_SentPage(self): 
+		response = self.testapp.get('/sent')
+		self.assertEqual(response.status_int, 400)

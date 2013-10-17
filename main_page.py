@@ -30,14 +30,14 @@ class MainPage(BaseHandler):
 						num_sent_msgs=len(self.outbox),\
 						msgs=self.inbox[:10],\
 						user=self.user,\
-						pageNum='0',\
+						page_num='0',\
 						data=self.triedata)
 		else: 
 			self.render("summaryPanel.html",\
 						num_msgs=len(self.inbox),\
 						num_sent_msgs=len(self.outbox),\
 						msgs=self.inbox[:10],\
-						pageNum='0',\
+						page_num='0',\
 						user=self.user)
 
 	#

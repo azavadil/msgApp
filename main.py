@@ -24,6 +24,7 @@ from memcache_fn import cache_group
 from base_handler import BaseHandler
 from main_page import MainPage
 from signup_page import Register
+from sent_page import SentPage
 
 import webapp2
 import logging
@@ -38,74 +39,7 @@ from google.appengine.api import taskqueue
 import urlparse
 from collections import OrderedDict
 
-
-#
-# Implementation note: 
-# -------------------
-# The app uses 5 database models. 
-#
-# UsersDb: 		models a single user. Used for managing 
-#				a secure user login system
-# Messages: 	models a single message
-# UserGroup: 	models a group of users. 
-# MsgFile: 		models a relationship between a user and the 	
-#				user's messages. Each MsgFile belongs to one user
-# UserNames: 	models a list of all the users. Used to rapidly provide
-#				a name list for transmital to client to build the 
-#				an autocompletion trie
-#
-
 		
-			
-#
-# Class: SentPage
-# ---------------
-# SentPage manages displaying the user's outbox
-#		
-		
-class SentPage(BaseHandler):
-	def get(self):
-		
-		if not self.user: 
-			self.error(400)
-			return 
-		else:
-			self.render("summaryPanel.html",\
-						num_msgs=len(self.inbox),\
-						num_sent_msgs=len(self.outbox),\
-						msgs=self.outbox,\
-						user=self.user,\
-						pageNum= '0'
-						)
-	def post(self):
-
-		if not self.user: 
-			self.error(400)
-			return 
-		
-		else: 
-			pageNum = int(self.request.get('hiddenPageNum'))
-			selectedAction = self.request.get('selectedAction')
-			
-			
-			if selectedAction == 'Older': 
-				if (pageNum + 1) * 10 < len(self.outbox): 
-					pageNum += 1 
-			else:  				# selected action is 'Newer' 
-				if (pageNum - 1) >= 0: 
-					pageNum -= 1
-			startIndex = pageNum * 10 
-			endIndex = startIndex + 10
-			
-			
-			self.render("summaryPanel.html",\
-						num_msgs=len(self.inbox),\
-						num_sent_msgs=len(self.outbox),\
-						msgs=self.outbox[startIndex:endIndex],\
-						user=self.user,\
-						pageNum=str(pageNum)
-						)
-			
 #
 # Class: ComposeMessage
 # ---------------------
