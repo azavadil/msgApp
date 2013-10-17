@@ -2,6 +2,7 @@ import os
 import webapp2
 import jinja2
 import json
+import logging
 
 from google.appengine.ext import db
 
@@ -89,6 +90,8 @@ class BaseHandler(webapp2.RequestHandler):
         """
 		webapp2.RequestHandler.initialize(self, *a, **kw)
 		user_name = self.read_secure_cookie('user_name')		## return string value of user name 
+		
+		
 		self.user = user_name and cache_user(user_name)
 		if self.user:
 			user_msg_file = self.user.msg_file
@@ -98,6 +101,7 @@ class BaseHandler(webapp2.RequestHandler):
 			self.outbox = sorted(db.get(user_msg_file.sent_keys),\
 				key=lambda x:x.created, reverse =True
 				)
+		
 		
 		
 		# 

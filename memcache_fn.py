@@ -30,7 +30,6 @@ def cache_user(user_name, update = False):
 
 	user_result = memcache.get(user_name)
 	if user_result is None or update:
-		logging.warning("Cache_user - DB hit")
 		user_result = UsersDb.db_by_name(str(user_name))	
 		memcache.set(user_name, user_result)
 	return user_result
