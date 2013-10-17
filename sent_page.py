@@ -10,20 +10,7 @@ import logging
 class SentPage(BaseHandler):
 	def get(self):
 		
-		 
-		cookie = self.request.cookies.get('user_name')
-		if cookie: 
-			logging.warning('success, cookie: ' + cookie) 
-			if self.user: 
-				logging.warning('success, self.user')
-			else: 
-				logging.warning('fail, no self.user')
-		else: 
-			flag = cookie == None
-			logging.warning('fail, cookie flag: ' + str(flag))
-		
 		if not self.user: 
-			logging.warning('fail: no self.user')
 			self.error(400)
 			return 
 		else:

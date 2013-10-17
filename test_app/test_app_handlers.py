@@ -10,22 +10,26 @@ from main_page import MainPage
 from signup_page import Register 
 from sent_page import SentPage
 from login_for_testing import LoginForTesting
+from compose_message import ComposeMessage
 
 from google.appengine.ext import db
 from google.appengine.ext import testbed
 
 from users_db import UsersDb
 from msgfile_db import MsgFile
+
 	   
 class HandlerTest(unittest.TestCase):
 	
 	
 	def setUp(self):
 		# Create a WSGI application.
-		app = webapp2.WSGIApplication([('/', MainPage), 
+		app = webapp2.WSGIApplication([
+			('/', MainPage), 
 			('/signup', Register), 
 			('/sent', SentPage),
-			('/testlogin', LoginForTesting)
+			('/testlogin', LoginForTesting),
+			('/compose', ComposeMessage)
 			])
         # Wrap the app with WebTest TestApp
 		self.testapp = webtest.TestApp(app)
@@ -69,4 +73,14 @@ class HandlerTest(unittest.TestCase):
 	def test_SentPage_login(self):
 		# test that non-logged in users 
 		response = self.testapp.get('/sent', headers={'Cookie':'user_name=anth|ce908054e59b3e4b38891dcd7feb93d5'})
+		self.assertEqual(response.status_int, 200)
+		
+	def test_ComposeMessage_no_login(self):
+		# test that non-logged in users get blocked
+		response = self.testapp.get('/compose', status=400)
+		self.assertEqual(response.status_int, 400)
+	
+	def test_ComposeMessage_login(self):
+		# test that non-logged in users 
+		response = self.testapp.get('/compose', headers={'Cookie':'user_name=anth|ce908054e59b3e4b38891dcd7feb93d5'})
 		self.assertEqual(response.status_int, 200)
