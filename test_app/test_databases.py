@@ -55,9 +55,6 @@ class TestDbs(unittest.TestCase):
 	def tearDown(self):
 		self.testbed.deactivate()	
 	
-	def tearDown(self): 
-		self.testbed.deactivate()
-	
 	# UsersDb tests
 	def test_basic_db(self): 
 		testUser = users_db.UsersDb(
