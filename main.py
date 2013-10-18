@@ -26,13 +26,12 @@ from main_page import MainPage
 from signup_page import Register
 from sent_page import SentPage
 from compose_message import ComposeMessage
+from view_message import ViewMessage
 
 import webapp2
 import logging
 import time
-import markdown
 import pickle
-import urllib
 
 from google.appengine.ext import db
 from google.appengine.api import memcache
@@ -43,122 +42,12 @@ from collections import OrderedDict
 		
 
 
-#
-# Class: ViewMessage
-# ------------------
-# ViewMessage manages the display of a single message
-#
-				
-class ViewMessage(BaseHandler):
-	def get(self, path):
-		if not self.user:
-			self.error(400)
-			return
-		
-		## 
-		# Implementation note: 
-		# --------------------
-		# we're using the key as a url. The app extracts
-		# the URL (which is actually a key) and uses the
-		# key to retrieve the message from the database. 
-		# use path[1:] to strip off the leading "/"
-		#
-		# Originally there was no parent key and the key == id. 
-		# That allowed code Message.get(db.Key(path[1:])) where 
-		# the function db.Key() converted a string to a key. 
-		# When there is a parent component to the path the 
-		# key != ID so
-		# 
-		# Defensive programming: validate we don't have a
-		# string integer before calling int() on the path
-		# [test required] 
-		##
-		
-		logging.warning(path)
-		if not path[1:].isdigit() or path is None: 
-			self.notfound()
-			return
-		
-		msg = MessageDb.db_by_id(int(path[1:]))
-		
-		##
-		# Implementation note: defend against a garbage URL
-		# --------------------------------------------------
-		# If the ID doesn't return a message return not found
-        # [test required] 		
-		## 
-		if not msg:
-			self.notfound()
-			return
-		
-		## 
-		# Impmlementation note: defend against malicious users
-		# ----------------------------------------------------
-		# Validate that the user that's logged in is either
-		# the recipient or the author of the message. If not, 
-		# fail silently. Don't give the user any more information
-		# [test required]
-		##
-		
-		if self.user.key() not in msg.recipient_keys and self.user.key().name() != msg.author: 
-			self.error(400)
-			return 
-		
-		if msg.key() in self.user.msg_file.unread_keys: 
-			self.user.msg_file.unread_keys.remove(msg.key()) 
-			self.user.msg_file.put() 
-		
-		# TODO: escape html
-		self.render("viewMsg.html",\
-					message_HTML=markdown.markdown(msg.body),\
-					message=msg,\
-					num_msgs=len(self.inbox),\
-					num_sent_msgs=len(self.outbox),\
-					user= self.user)
-	
-	
-	
-	##
-	# Implementation note: 
-	# -------------------
-	# The app posts to the ViewMessage handlers when either
-	# the 'Reply' or 'Delete' button is clicked. When the 
-	# 'Reply' button is clicked, we extract the values for 
-	# the message author and subject, build a query string, 
-	# and redirect to /newMsg with the query string allowing 
-	# the app to fill in the recipient and subject of the new 
-	# message 
-	##
-	
-	def post(self, path): 
-		
-		selectedAction = self.request.get('selectedAction')
-		msgAuthor = self.request.get('msgAuthor')
-		msgSubject = self.request.get('msgSubject')
-		
-	
-		msg = MessageDb.db_by_id(int(path[1:]))
-		
-		if selectedAction == "reply":
-		
-			qsParams = OrderedDict([("msgAuthor",msgAuthor),("msgSubject", msgSubject)])
-			self.redirect("/newMsg?" + urllib.urlencode(qsParams))
-		
-		if selectedAction == "delete": 
-			if msg.key() in self.user.msg_file.message_keys: 
-				self.user.msg_file.message_keys.remove(msg.key())
-			if msg.key() in self.user.msg_file.unread_keys: 
-				self.user.msg_file.unread_keys.remove(msg.key()) 
-			self.user.msg_file.put()
-			
-			self.redirect("/") 
-			
 					
-##
+#
 # Class: View Group
 # -----------------
 # ViewGroup manages the CRUD actions for user groups. 
-## 				
+# 				
 class ViewGroup(BaseHandler):
 	def get(self):
 		if not self.user:
@@ -190,14 +79,14 @@ class ViewGroup(BaseHandler):
 						error=error_msg)
 			return
 		
-		##
+		#
 		# Implementation note: 
 		# --------------------
 		# The programs checks for conflicts with both groupnames
 		# and usernames. The program takes the 'To' field and looks
 		# for a group or user that matches. Therefore, we must for 
 		# unique names
-		## 
+		# 
 			
 		if selected_action == "makeGroup": 
 			ent, group_created = UserGroup.my_get_or_insert(
@@ -272,14 +161,14 @@ class ViewGroup(BaseHandler):
 							num_msgs = len(self.inbox),\
 							num_sent_msgs = len(self.outbox),\
 							error = error_msg)
-			##
+			#
 			# Implementation note: 
 			# --------------------
 			# group_author is set as Reference property on the group. 
 			# Therefore, qry.group_author dereferences a user entity. 
 			# This may be a surprising result since we set group_author
 			# to be self.user.key().
-			##
+			#
 			elif qry.group_author.key() != self.user.key(): 
 				error_msg = "Only group author can delete group"
 				self.render("viewGroup.html",\
