@@ -54,21 +54,6 @@ class HandlerTest(unittest.TestCase):
 	def tearDown(self):
 		self.testbed.deactivate()	
 
-
-    # Test the handler.
-	def test_MainPage(self):
-		response = self.testapp.get('/')
-		self.assertEqual(response.status_int, 200)
-		self.assertEqual(response.content_type, 'text/html')
-	
-	def test_SignupPage(self):
-		response = self.testapp.get('/signup')
-		self.assertEqual(response.status_int, 200)
-	
-	def test_SignupPage_post(self): 
-		response = self.testapp.post('/signup', {'username':'anth','pwd1':'Star88','pwd2':'Star88'})
-		redirect = response.follow()
-		self.assertEqual(redirect.status_int, 200)
 	
 	def test_SentPage_no_login(self):
 		# test that non-logged in users get blocked

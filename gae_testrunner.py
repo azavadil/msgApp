@@ -1,7 +1,7 @@
 #!/usr/bin/python
 import optparse
 import sys
-#sys.path.append( "G:\msgApp\msg\test_generic\test_package" )
+#sys.path.append( "G:\msgApp\msg\test_app" )
 
 # Install the Python unittest2 package before you run this script.
 import unittest2

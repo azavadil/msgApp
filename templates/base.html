@@ -39,7 +39,7 @@
 		{% if user %}
 		<div class="row">		
 			<div class="col-lg-2 col-lg-offset-10">
-				{{user.user_name}} (<a class="gray-link" href="/logout">logout</a>)
+				{{user.key().name()}} (<a class="gray-link" href="/logout">logout</a>)
 				
 				<!-- if the user isn't logged in then we show the login form --> 				
 				<!-- we need to check if we're on the signup page --> 
