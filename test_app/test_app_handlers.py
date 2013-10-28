@@ -142,7 +142,7 @@ class HandlerTest(unittest.TestCase):
 		#
 		# Implementation note:
 		# --------------------
-		# the handler uses the path as an interget. We test that our 
+		# the handler uses the path as an integer. Test that our 
 		# defensive programming guards against an error 
 		
 		
