@@ -53,29 +53,7 @@ class HandlerTest(unittest.TestCase):
 	
 	def tearDown(self):
 		self.testbed.deactivate()	
-
-	
-	def test_SentPage_no_login(self):
-		# test that non-logged in users get blocked
-		response = self.testapp.get('/sent', status=400)
-		self.assertEqual(response.status_int, 400)
-	
-	def test_SentPage_login(self):
-		# test that non-logged in users 
-		response = self.testapp.get('/sent', headers={'Cookie':'user_name=anth|ce908054e59b3e4b38891dcd7feb93d5'})
-		self.assertEqual(response.status_int, 200)
-		
-	def test_ComposeMessage_no_login(self):
-		# test that non-logged in users get blocked
-		response = self.testapp.get('/compose', status=400)
-		self.assertEqual(response.status_int, 400)
-	
-	def test_ComposeMessage_login(self):
-		# test that non-logged in users 
-		response = self.testapp.get('/compose', headers={'Cookie':'user_name=anth|ce908054e59b3e4b38891dcd7feb93d5'})
-		self.assertEqual(response.status_int, 200)
-	
-			
+					
 	def test_ViewMessage_no_login(self):
 		# test that non-logged in users get blocked
 		response = self.testapp.get('/1', status=400)

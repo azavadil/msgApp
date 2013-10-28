@@ -8,7 +8,7 @@ import unittest
 from google.appengine.ext import db
 from google.appengine.ext import testbed
 
-from main_page import MainPage	   
+from sent_page import SentPage	   
 
 from users_db import UsersDb
 from msgfile_db import MsgFile
@@ -20,7 +20,7 @@ class HandlerTest(unittest.TestCase):
 	def setUp(self):
 		# Create a WSGI application.
 		app = webapp2.WSGIApplication([
-			('/', MainPage)
+			('/sent', SentPage)
 			])
         # Wrap the app with WebTest TestApp
 		self.testapp = webtest.TestApp(app)
@@ -42,29 +42,20 @@ class HandlerTest(unittest.TestCase):
 	def tearDown(self):
 		self.testbed.deactivate()	
 
-	# Test the MainPage handler
-	def test_MainPage_no_authentication(self):
-		response = self.testapp.get('/')
+	def test_SentPage_no_login(self):
+		# test that non-logged in users get blocked
+		response = self.testapp.get('/sent', status=400)
+		self.assertEqual(response.status_int, 400)
+	
+	def test_SentPage_login(self):
+		# test that non-logged in users 
+		response = self.testapp.get('/sent', headers={'Cookie':'user_name=anth|ce908054e59b3e4b38891dcd7feb93d5'})
 		self.assertEqual(response.status_int, 200)
-		self.assertEqual(response.content_type, 'text/html')
-	
-	# Test the MainPage handler
-	# We add a cookie generated using the make_secure_val function to simulate 
-	# authentication 
-	
-	def test_MainPage_authenticated(self):
-		response = self.testapp.get('/', headers={'Cookie':'user_name=anth|ce908054e59b3e4b38891dcd7feb93d5'})
+
+	def test_SentPage_post(self):
+		response = self.testapp.get('/sent',
+			{'hiddenPageNum':'0', 'selectedAction':'Older'},
+			headers={'Cookie':'user_name=anth|ce908054e59b3e4b38891dcd7feb93d5'}
+			)
 		self.assertEqual(response.status_int, 200)
-		self.assertEqual(response.content_type, 'text/html')
-		contains_username = 'anth' in response.body
-		self.assertTrue(contains_username)
-	
-	def testMainPage_login(self):
-		response = self.testapp.post('/', {'username':'anth','pwd1':'Foobar1'})
-		self.assertEqual(response.status_int, 200)
-		self.assertEqual(response.content_type, 'text/html')
-		contains_username = 'anth' in response.body
-		self.assertTrue(contains_username)
-	
-	
-	
+		
