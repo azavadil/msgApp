@@ -63,7 +63,7 @@ Memcache
 The application uses memcache to minimize reads from the datastore. User entities, group entities, and the list of groups a user belongs to are cached. For now, I chose not to cache the inbox because it wasn't clear if there would be a net benefit. Caching the inbox / outbox requires a read from the database each time a user receives a message. Depending on user behavior, this could result in more database reads than not caching the inbox. For example, if the user only logs on once a day, then 20 messages might be received between logins. Instead of 20 database reads, there's only 1 database read. However, if the user checks their inbox more frequently than messages are received, then there would be a benefit to caching the inbox.
 
 Taskqueue for global distrubtions
-––––––––––––––––––––––––––––––––-
+---------------------------------
 As the system can potentially have millions of users, to avoid blocking the application the global distribution (i.e. distribution to ‘all’) is handled by a taskqueue. When a message is addressed to ‘all’, the message parameters are passed to the task queue which completes the actions of storing the message and adding the message key to each user’s message file.
 
 Autocompletion:
