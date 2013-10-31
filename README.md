@@ -2,7 +2,7 @@ Implementation notes
 ===================
 Application outline
 -------------------
-In implementating a messaging system I thought about how I would build a messaging system without a computer. If I was providing a secure service where users could call in to get messages and leave messages for other users I would need the following: 
+In implementing a messaging system I thought about how I would build a messaging system without a computer. If I was providing a secure service where users could call in to get messages and leave messages for other users I would need the following: 
 
 1. A list of users and their passwords ("User File")
 2. A list of the messages IDs for each user ("Msg List") indicating which messages the user should receive 
@@ -17,7 +17,7 @@ I used the above inventory to guide my implementation.
 
 Application logic
 -----------------
-The application logic is contained in the file [main.py](https://github.com/azavadil/msgApp/blob/master/main.py). Following the outline above, when a user arrives at the site the application checks to see if the user is logged in. If not, the user has the option of signing into their account or creating a new account. When the user logs in a secure cookie is set which can subsequently be used to to validate their identity. Upon login, an inbox of the user's ten most recent messages is displayed. The user can click on any of the listed messages listed in the inbox to view the message content. 
+The application logic is contained in the file [main.py](https://github.com/azavadil/msgApp/blob/master/main.py). Following the outline above, when a user arrives at the site the application checks to see if the user is logged in. If not, the user has the option of signing into their account or creating a new account. When the user logs in a secure cookie is set which can subsequently be used to validate their identity. Upon login, an inbox of the user's ten most recent messages is displayed. The user can click on any of the listed messages listed in the inbox to view the message content. 
 
 The user also has the option to send messages to other users on the system. When a user sends a message, two things happen. The message is stored to the Message database and the message ID (i.e. the message's datastore key) is added to the recipient/recipients message lists.
 
@@ -60,7 +60,11 @@ Global and group distributions are straightforward. The recipient 'all' sends th
 
 Memcache
 --------
-The application uses memcache to minimize reads from the datastore. User entities, group entities, and the list of groups a user belongs to are cached. For now, I chose not to cache the inbox because it wasn't clear if there would be a net benefit. Caching the inbox / outbox requires a read from the database each time a user receives a message. Depending on user behavior, this could result in more database reads than not caching the inbox. For example, if the user only logs on once a day, then 20 messages might be received between logins. Instead of 20 database reads, there's only 1 database read. However, if the user checks their inbox more frequently than messages are received, then there would be a benefit to caching the inbox. 
+The application uses memcache to minimize reads from the datastore. User entities, group entities, and the list of groups a user belongs to are cached. For now, I chose not to cache the inbox because it wasn't clear if there would be a net benefit. Caching the inbox / outbox requires a read from the database each time a user receives a message. Depending on user behavior, this could result in more database reads than not caching the inbox. For example, if the user only logs on once a day, then 20 messages might be received between logins. Instead of 20 database reads, there's only 1 database read. However, if the user checks their inbox more frequently than messages are received, then there would be a benefit to caching the inbox.
+
+Taskqueue for global distrubtions
+––––––––––––––––––––––––––––––––-
+As the system can potentially have millions of users, to avoid blocking the application the global distribution (i.e. distribution to ‘all’) is handled by a taskqueue. When a message is addressed to ‘all’, the message parameters are passed to the task queue which completes the actions of storing the message and adding the message key to each user’s message file.
 
 Autocompletion:
 ---------------
@@ -72,7 +76,7 @@ Having been blocked building the trie on the server side, I switched to a naive 
 
 Knowing what I know now, there are two approaches to autocomplete that I'd explore for a production version.  
 
-1. A succint data structure instance that could be built on the server side and transmitted to the client. 
+1. A succinct data structure instance that could be built on the server side and transmitted to the client. 
 2. Maintain the trie (or similar structure) on the server side and set up a URL to response to autocomplete queries.  
 
 
