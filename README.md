@@ -1,5 +1,15 @@
 Implementation notes
 ===================
+
+Specification
+-------------
+Build an internal messaging system for site-wide announcements, for instructors to send messages to a group, and for one-to-one communication between users.  Design and implement as many of the following features.
+
+1. Allow sending of messages between individual users, identified by the unique key of their record in the system.  Messages are in markdown format, and auto-complete of recipients would be a bonus.
+2. Allow a user to view their inbox, read messages, (automatically) mark messages as read, and delete messages.
+3. Allow sending a broadcast message to all users.  Keep in mind that there could be millions of users.
+4. Allow sending a message to a group of users.  Groups can be large (over 100,000 users) and are stored by having each user record list all the groups it’s a member of.  Group membership varies over time and a message should be received only by the users who were members of the destination group at the time the message was sent.
+
 Application outline
 -------------------
 In implementing a messaging system I thought about how I would build a messaging system without a computer. If I was providing a secure service where users could call in to get messages and leave messages for other users I would need the following: 
