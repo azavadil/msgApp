@@ -132,12 +132,29 @@ class TestDbs(unittest.TestCase):
 			group_author=test_key
 			)
 		test_group.put()
-		print('key_name: ' + str(test_group.key().name()) )
 		
 		found = user_group_db.UserGroup.get_by_key_name('cs_101', 
 			parent=user_group_db.group_db_rootkey()
 			)
 		self.assertEqual(found.key().name(), 'cs_101')
+	
+	# user_group_db tests
+	def test_user_group_db_search_by_name(self): 
+		
+		# create a user
+		test_key = self.test_user.key()
+		
+		test_group = user_group_db.UserGroup(
+			parent=user_group_db.group_db_rootkey(),\
+			key_name='cs_101',\
+			group_keys=[test_key],\
+			group_author=test_key
+			)
+		test_group.put()
+		
+		found = user_group_db.UserGroup.db_by_name('cs_101')
+		self.assertEqual(found.key().name(), 'cs_101')
+	
 	
 	def test_user_group_my_get_or_insert(self): 
 		

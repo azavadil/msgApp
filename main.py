@@ -21,7 +21,6 @@ import webapp2
 
 from google.appengine.ext import db
 from google.appengine.api import memcache
-from google.appengine.api import taskqueue
 import urlparse
 
 

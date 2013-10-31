@@ -22,10 +22,13 @@ def group_db_rootkey(group = 'default'):
 	
 class UserGroup(db.Model):
 	
-	
 	group_keys = db.ListProperty(db.Key, required = True)
 	group_author = db.ReferenceProperty(required = True, indexed = False)
-    	
+    
+	@classmethod
+	def db_by_name(cls, name):
+		return UserGroup.get_by_key_name(name,parent=group_db_rootkey())
+	
 	
 	@classmethod
 	def my_get_or_insert(cls, key_name, **kwargs):
@@ -57,3 +60,5 @@ class UserGroup(db.Model):
 			entity.put()
 			return entity, True
 		return db.run_in_transaction(_tx)
+		
+	

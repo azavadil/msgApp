@@ -1,8 +1,11 @@
+from google.appengine.api import taskqueue
+
 from base_handler import BaseHandler
 from users_db import UsersDb
 from message_db import MessageDb
 from message_db import message_db_rootkey
 from user_group_db import UserGroup
+
 
 #
 # Class: ComposeMessage
@@ -68,7 +71,7 @@ class ComposeMessage(BaseHandler):
 			taskqueue.add( params=q_params )
 			self.redirect("/")
 					
-		group_qry = UserGroup.all().filter("groupname =", msg_recipient).get()	
+		group_qry = UserGroup.db_by_name(msg_recipient)	
 		if group_qry: 
 			
 			# create a new Message entity
